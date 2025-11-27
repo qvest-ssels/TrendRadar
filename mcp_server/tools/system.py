@@ -6,6 +6,11 @@
 
 from pathlib import Path
 from typing import Dict, List, Optional
+import json
+import random
+import time
+import xml.etree.ElementTree as ET
+import requests
 
 from ..services.data_service import DataService
 from ..utils.validators import validate_platforms
@@ -65,7 +70,7 @@ class SystemManagementTools:
                 }
             }
 
-    def trigger_crawl(self, platforms: Optional[List[str]] = None, save_to_local: bool = False, include_url: bool = False) -> Dict:
+    def trigger_crawl(self, platforms: List[str] = None, save_to_local: bool = False, include_url: bool = False) -> Dict:
         """
         手动触发一次临时爬取任务（可选持久化）
 
@@ -89,14 +94,6 @@ class SystemManagementTools:
         print(f"🔄 System trigger_crawl initiated - platforms: {platforms or 'all'}, save_to_local: {save_to_local}, include_url: {include_url}")
         
         try:
-            import json
-            import time
-            import random
-            import requests
-            from datetime import datetime
-            import pytz
-            import yaml
-
             # 参数验证
             platforms = validate_platforms(platforms)
 
@@ -149,17 +146,28 @@ class SystemManagementTools:
             id_to_name = {}
             failed_ids = []
 
-            for i, id_info in enumerate(ids):
-                if isinstance(id_info, tuple):
-                    id_value, name = id_info
-                else:
-                    id_value = id_info
-                    name = id_value
-
+            for i, platform in enumerate(target_platforms):
+                id_value = platform["id"]
+                name = platform.get("name", id_value)
                 id_to_name[id_value] = name
 
-                # 构建请求URL
-                url = f"https://newsnow.busiyi.world/api/s?id={id_value}&latest"
+                # Get crawler configuration
+                crawler_cfg = platform.get("crawler", {})
+                crawler_type = crawler_cfg.get("type", "newsnow")
+                url_template = crawler_cfg.get("url_template")
+
+                # Build URL based on crawler type
+                if url_template:
+                    try:
+                        url = url_template.format(id=id_value)
+                    except Exception:
+                        url = url_template
+                elif crawler_type == "rss":
+                    # For RSS, use the id_value directly if it's a URL, or default
+                    url = id_value if id_value.startswith(("http://", "https://")) else f"https://www.spiegel.de/schlagzeilen/index.rss"
+                else:
+                    # Default: original newsnow endpoint
+                    url = f"https://newsnow.busiyi.world/api/s?id={id_value}&latest"
 
                 headers = {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -169,56 +177,167 @@ class SystemManagementTools:
                     "Cache-Control": "no-cache",
                 }
 
-                # 重试机制
-                max_retries = 2
-                retries = 0
-                success = False
+                # Handle different crawler types
+                if crawler_type in ["rss", "googlenews"]:
+                    # RSS/Google News parsing logic
+                    max_retries = 2
+                    retries = 0
+                    success = False
 
-                while retries <= max_retries and not success:
-                    try:
-                        response = requests.get(url, headers=headers, timeout=10)
-                        response.raise_for_status()
+                    while retries <= max_retries and not success:
+                        try:
+                            response = requests.get(url, headers=headers, timeout=15)
+                            response.raise_for_status()
+                            text = response.text
 
-                        data_text = response.text
-                        data_json = json.loads(data_text)
+                            # Parse XML
+                            import xml.etree.ElementTree as ET
+                            items = []
+                            
+                            try:
+                                root = ET.fromstring(text)
+                                
+                                if crawler_type == "rss":
+                                    # RSS items
+                                    rss_items = root.findall(".//item")
+                                    for item in rss_items:
+                                        title_el = item.find("title")
+                                        link_el = item.find("link")
+                                        title = title_el.text.strip() if title_el is not None and title_el.text else ""
+                                        link = link_el.text.strip() if link_el is not None and link_el.text else ""
+                                        if title:
+                                            items.append({"title": title, "url": link})
+                                    
+                                    # Atom entries
+                                    atom_entries = root.findall(".//{http://www.w3.org/2005/Atom}entry")
+                                    for entry in atom_entries:
+                                        title_el = entry.find("{http://www.w3.org/2005/Atom}title")
+                                        link_el = entry.find("{http://www.w3.org/2005/Atom}link")
+                                        title = title_el.text.strip() if title_el is not None and title_el.text else ""
+                                        link = ""
+                                        if link_el is not None:
+                                            link = link_el.get("href", "") or (link_el.text or "")
+                                        if title:
+                                            items.append({"title": title, "url": link})
+                                
+                                elif crawler_type == "googlenews":
+                                    # Google News sitemap entries
+                                    url_entries = root.findall(".//{http://www.sitemaps.org/schemas/sitemap/0.9}url")
+                                    for url_entry in url_entries:
+                                        # Get the article URL
+                                        loc_el = url_entry.find("{http://www.sitemaps.org/schemas/sitemap/0.9}loc")
+                                        link = loc_el.text.strip() if loc_el is not None and loc_el.text else ""
+                                        
+                                        # Get the news title from the n:news section
+                                        news_el = url_entry.find(".//{http://www.google.com/schemas/sitemap-news/0.9}news")
+                                        if news_el is not None:
+                                            title_el = news_el.find("{http://www.google.com/schemas/sitemap-news/0.9}title")
+                                            title = title_el.text.strip() if title_el is not None and title_el.text else ""
+                                        else:
+                                            title = ""
+                                        
+                                        if title and link:
+                                            items.append({"title": title, "url": link})
 
-                        status = data_json.get("status", "未知")
-                        if status not in ["success", "cache"]:
-                            raise ValueError(f"响应状态异常: {status}")
+                                print(f"获取 {id_value} 成功（{crawler_type.upper()} -> parsed {len(items)} items）")
 
-                        status_info = "最新数据" if status == "success" else "缓存数据"
-                        print(f"获取 {id_value} 成功（{status_info}）")
+                                # Convert to expected format
+                                results[id_value] = {}
+                                for index, item in enumerate(items, 1):
+                                    title = item["title"]
+                                    url_link = item.get("url", "")
+                                    
+                                    if title in results[id_value]:
+                                        results[id_value][title]["ranks"].append(index)
+                                    else:
+                                        results[id_value][title] = {
+                                            "ranks": [index],
+                                            "url": url_link,
+                                            "mobileUrl": "",
+                                        }
 
-                        # 解析数据
-                        results[id_value] = {}
-                        for index, item in enumerate(data_json.get("items", []), 1):
-                            title = item["title"]
-                            url_link = item.get("url", "")
-                            mobile_url = item.get("mobileUrl", "")
+                                success = True
 
-                            if title in results[id_value]:
-                                results[id_value][title]["ranks"].append(index)
+                            except ET.ParseError as e:
+                                retries += 1
+                                if retries <= max_retries:
+                                    wait_time = random.uniform(3, 5)
+                                    print(f"请求 {id_value} 失败: Failed to parse {crawler_type.upper()} XML: {e}. {wait_time:.2f}秒后重试...")
+                                    time.sleep(wait_time)
+                                else:
+                                    print(f"请求 {id_value} 失败: Failed to parse {crawler_type.upper()} XML: {e}")
+                                    failed_ids.append(id_value)
+                            except Exception as e:
+                                retries += 1
+                                if retries <= max_retries:
+                                    wait_time = random.uniform(3, 5)
+                                    print(f"请求 {id_value} 失败: {e}. {wait_time:.2f}秒后重试...")
+                                    time.sleep(wait_time)
+                                else:
+                                    print(f"请求 {id_value} 失败: {e}")
+                                    failed_ids.append(id_value)
+
+                        except Exception as e:
+                            retries += 1
+                            if retries <= max_retries:
+                                wait_time = random.uniform(3, 5)
+                                print(f"请求 {id_value} 失败: {e}. {wait_time:.2f}秒后重试...")
+                                time.sleep(wait_time)
                             else:
-                                results[id_value][title] = {
-                                    "ranks": [index],
-                                    "url": url_link,
-                                    "mobileUrl": mobile_url,
-                                }
+                                print(f"请求 {id_value} 失败: {e}")
+                                failed_ids.append(id_value)
 
-                        success = True
+                else:
+                    # Original newsnow API logic
+                    max_retries = 2
+                    retries = 0
+                    success = False
 
-                    except Exception as e:
-                        retries += 1
-                        if retries <= max_retries:
-                            wait_time = random.uniform(3, 5)
-                            print(f"请求 {id_value} 失败: {e}. {wait_time:.2f}秒后重试...")
-                            time.sleep(wait_time)
-                        else:
-                            print(f"请求 {id_value} 失败: {e}")
-                            failed_ids.append(id_value)
+                    while retries <= max_retries and not success:
+                        try:
+                            response = requests.get(url, headers=headers, timeout=10)
+                            response.raise_for_status()
+
+                            data_text = response.text
+                            data_json = json.loads(data_text)
+
+                            status = data_json.get("status", "未知")
+                            if status not in ["success", "cache"]:
+                                raise ValueError(f"响应状态异常: {status}")
+
+                            status_info = "最新数据" if status == "success" else "缓存数据"
+                            print(f"获取 {id_value} 成功（{status_info}）")
+
+                            # 解析数据
+                            results[id_value] = {}
+                            for index, item in enumerate(data_json.get("items", []), 1):
+                                title = item["title"]
+                                url_link = item.get("url", "")
+                                mobile_url = item.get("mobileUrl", "")
+
+                                if title in results[id_value]:
+                                    results[id_value][title]["ranks"].append(index)
+                                else:
+                                    results[id_value][title] = {
+                                        "ranks": [index],
+                                        "url": url_link,
+                                        "mobileUrl": mobile_url,
+                                    }
+
+                            success = True
+
+                        except Exception as e:
+                            retries += 1
+                            if retries <= max_retries:
+                                wait_time = random.uniform(3, 5)
+                                print(f"请求 {id_value} 失败: {e}. {wait_time:.2f}秒后重试...")
+                                time.sleep(wait_time)
+                            else:
+                                print(f"请求 {id_value} 失败: {e}")
+                                failed_ids.append(id_value)
 
                 # 请求间隔
-                if i < len(ids) - 1:
+                if i < len(target_platforms) - 1:
                     actual_interval = request_interval + random.randint(-10, 20)
                     actual_interval = max(50, actual_interval)
                     time.sleep(actual_interval / 1000)

@@ -6,6 +6,10 @@ TrendRadar MCP Server - FastMCP 2.0 实现
 """
 
 import json
+import logging
+import signal
+import sys
+from datetime import datetime
 from typing import List, Optional, Dict
 
 from fastmcp import FastMCP
@@ -624,7 +628,7 @@ async def get_system_status() -> str:
 
 @mcp.tool
 async def trigger_crawl(
-    platforms: Optional[List[str]] = None,
+    platforms: List[str] = None,
     save_to_local: bool = False,
     include_url: bool = False
 ) -> str:
@@ -676,6 +680,17 @@ def run_server(
         host: HTTP模式的监听地址，默认 0.0.0.0
         port: HTTP模式的监听端口，默认 3333
     """
+    # 配置日志
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    logger = logging.getLogger(__name__)
+
+    # 记录服务器启动时间
+    startup_time = datetime.now()
+    logger.info(f"TrendRadar MCP Server starting at {startup_time.strftime('%Y-%m-%d %H:%M:%S')}")
+
     # 初始化工具实例
     _get_tools(project_root)
 
@@ -726,19 +741,41 @@ def run_server(
     print("=" * 60)
     print()
 
-    # 根据传输模式运行服务器
-    if transport == 'stdio':
-        mcp.run(transport='stdio')
-    elif transport == 'http':
-        # HTTP 模式（生产推荐）
-        mcp.run(
-            transport='http',
-            host=host,
-            port=port,
-            path='/mcp'  # HTTP 端点路径
-        )
-    else:
-        raise ValueError(f"不支持的传输模式: {transport}")
+    # 设置信号处理器用于优雅关闭
+    def signal_handler(signum, frame):
+        shutdown_time = datetime.now()
+        logger.info(f"TrendRadar MCP Server shutting down at {shutdown_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"Server uptime: {shutdown_time - startup_time}")
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    try:
+        # 根据传输模式运行服务器
+        if transport == 'stdio':
+            logger.info("Starting MCP server in stdio mode")
+            mcp.run(transport='stdio')
+        elif transport == 'http':
+            # HTTP 模式（生产推荐）
+            logger.info(f"Starting MCP server in HTTP mode on {host}:{port}")
+            mcp.run(
+                transport='http',
+                host=host,
+                port=port,
+                path='/mcp'  # HTTP 端点路径
+            )
+        else:
+            raise ValueError(f"不支持的传输模式: {transport}")
+    except KeyboardInterrupt:
+        shutdown_time = datetime.now()
+        logger.info(f"TrendRadar MCP Server shutting down at {shutdown_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"Server uptime: {shutdown_time - startup_time}")
+    except Exception as e:
+        shutdown_time = datetime.now()
+        logger.error(f"TrendRadar MCP Server encountered error at {shutdown_time.strftime('%Y-%m-%d %H:%M:%S')}: {e}")
+        logger.info(f"Server uptime before error: {shutdown_time - startup_time}")
+        raise
 
 
 if __name__ == '__main__':

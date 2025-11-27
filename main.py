@@ -616,6 +616,68 @@ class DataFetcher:
                     data_text = json.dumps(data_obj, ensure_ascii=False)
                     print(f"获取 {id_value} 成功（RSS -> converted to JSON, {len(items)} items）")
                     return data_text, id_value, alias
+                
+                # Handle Google News sitemap feeds
+                elif crawler_type == "googlenews":
+                    if self.debug_mode:
+                        print(f"  🌐 Fetching Google News sitemap: {url}")
+                    
+                    response = requests.get(url, proxies=proxies, headers=headers, timeout=15)
+                    response.raise_for_status()
+                    text = response.text
+                    
+                    if self.debug_mode:
+                        print(f"  📄 Response received: {len(text)} characters")
+                        print(f"  🔍 Content-Type: {response.headers.get('content-type', 'unknown')}")
+                    
+                    # Parse Google News sitemap XML
+                    items = []
+                    try:
+                        root = ET.fromstring(text)
+                        
+                        if self.debug_mode:
+                            print(f"  📋 XML root tag: {root.tag}")
+                        
+                        # Google News sitemap entries
+                        url_entries = root.findall(".//{http://www.sitemaps.org/schemas/sitemap/0.9}url")
+                        if self.debug_mode:
+                            print(f"  📰 Found {len(url_entries)} Google News entries")
+                        
+                        for url_entry in url_entries:
+                            # Get the article URL
+                            loc_el = url_entry.find("{http://www.sitemaps.org/schemas/sitemap/0.9}loc")
+                            link = loc_el.text.strip() if loc_el is not None and loc_el.text else ""
+                            
+                            # Get the news title from the n:news section
+                            news_el = url_entry.find(".//{http://www.google.com/schemas/sitemap-news/0.9}news")
+                            if news_el is not None:
+                                title_el = news_el.find("{http://www.google.com/schemas/sitemap-news/0.9}title")
+                                title = title_el.text.strip() if title_el is not None and title_el.text else ""
+                            else:
+                                title = ""
+                            
+                            if title and link:
+                                items.append({"title": title, "url": link})
+                        
+                        if self.debug_mode:
+                            print(f"  ✅ Successfully parsed {len(items)} Google News items")
+                            
+                    except ET.ParseError as e:
+                        print(f"❌ Failed to parse Google News sitemap XML for {id_value}: {e}")
+                        if self.debug_mode:
+                            print(f"  📄 Raw response (first 500 chars): {text[:500]}...")
+                        items = []
+                    except Exception as e:
+                        print(f"❌ Unexpected error parsing Google News sitemap for {id_value}: {e}")
+                        if self.debug_mode:
+                            import traceback
+                            traceback.print_exc()
+                        items = []
+                    
+                    data_obj = {"status": "success", "items": items}
+                    data_text = json.dumps(data_obj, ensure_ascii=False)
+                    print(f"获取 {id_value} 成功（RSS -> converted to JSON, {len(items)} items）")
+                    return data_text, id_value, alias
 
                 # Handle standard JSON API
                 response = requests.get(url, proxies=proxies, headers=headers, timeout=10)

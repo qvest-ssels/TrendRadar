@@ -321,3 +321,55 @@ class TestMCPServerIntegration:
 
         # Should have either result or error
         assert "result" in data or "error" in data
+
+    def test_mcp_server_cache_functionality(self, mcp_server_process):
+        """Test that MCP server properly uses caching for data requests"""
+        from mcp_server.services.data_service import DataService
+        from mcp_server.services.cache_service import get_cache
+        import time
+
+        # Test cache functionality directly
+        cache = get_cache()
+        
+        # Clear any existing cache
+        cache.clear()
+        
+        # Get initial cache stats
+        initial_stats = cache.get_stats()
+        assert initial_stats["total_entries"] == 0
+        
+        # Create data service
+        data_service = DataService()
+        
+        # First call to get_latest_news should populate cache
+        start_time = time.time()
+        result1 = data_service.get_latest_news(limit=5)
+        first_call_time = time.time() - start_time
+        
+        # Check that cache now has entries
+        stats_after_first = cache.get_stats()
+        assert stats_after_first["total_entries"] > 0
+        
+        # Second call should use cache
+        start_time = time.time()
+        result2 = data_service.get_latest_news(limit=5)
+        second_call_time = time.time() - start_time
+        
+        # Results should be identical (from cache)
+        assert result1 == result2
+        
+        # Cache should still have entries
+        final_stats = cache.get_stats()
+        assert final_stats["total_entries"] >= stats_after_first["total_entries"]
+        
+        # Verify the results contain expected structure
+        assert isinstance(result1, list)
+        assert len(result1) <= 5  # Should respect the limit
+        if len(result1) > 0:
+            # Check structure of first item
+            item = result1[0]
+            assert "title" in item
+            assert "platform" in item
+            assert "platform_name" in item
+            assert "rank" in item
+            assert "timestamp" in item

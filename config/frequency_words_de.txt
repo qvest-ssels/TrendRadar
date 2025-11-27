@@ -1,4 +1,8 @@
 # German Frequency Words
+regierung
+siemens
+veränderung
+spaß
 # German/International news keywords
 
 # Add German-specific keywords here as needed
