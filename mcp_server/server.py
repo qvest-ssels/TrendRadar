@@ -630,7 +630,8 @@ async def get_system_status() -> str:
 async def trigger_crawl(
     platforms: List[str] = None,
     save_to_local: bool = False,
-    include_url: bool = False
+    include_url: bool = False,
+    debug: bool = False
 ) -> str:
     """
     手动触发一次爬取任务（可选持久化）
@@ -643,6 +644,7 @@ async def trigger_crawl(
                    - 注意：失败的平台会在返回结果的 failed_platforms 字段中列出
         save_to_local: 是否保存到本地 output 目录，默认 False
         include_url: 是否包含URL链接，默认False（节省token）
+        debug: 是否启用调试模式，默认False（启用时输出详细的爬取日志）
 
     Returns:
         JSON格式的任务状态信息，包含：
@@ -650,16 +652,18 @@ async def trigger_crawl(
         - failed_platforms: 失败的平台列表（如有）
         - total_news: 爬取的新闻总数
         - data: 新闻数据
+        - debug_info: 调试信息（仅当debug=True时包含）
 
     Examples:
         - 临时爬取: trigger_crawl(platforms=['zhihu'])
         - 爬取并保存: trigger_crawl(platforms=['weibo'], save_to_local=True)
         - 使用默认平台: trigger_crawl()  # 爬取config.yaml中配置的所有平台
+        - 调试模式: trigger_crawl(platforms=['theguardian'], debug=True)
     """
-    print(f"🔄 MCP trigger_crawl called - platforms: {platforms or 'all'}, save_to_local: {save_to_local}")
+    print(f"🔄 MCP trigger_crawl called - platforms: {platforms or 'all'}, save_to_local: {save_to_local}, debug: {debug}")
     
     tools = _get_tools()
-    result = tools['system'].trigger_crawl(platforms=platforms, save_to_local=save_to_local, include_url=include_url)
+    result = tools['system'].trigger_crawl(platforms=platforms, save_to_local=save_to_local, include_url=include_url, debug=debug)
     return json.dumps(result, ensure_ascii=False, indent=2)
 
 

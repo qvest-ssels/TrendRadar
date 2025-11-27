@@ -373,3 +373,153 @@ class TestMCPServerIntegration:
             assert "platform_name" in item
             assert "rank" in item
             assert "timestamp" in item
+
+    def test_system_status(self, mcp_server_process):
+        """Test that get_system_status returns valid status information"""
+        from mcp_server.tools.system import SystemManagementTools
+        
+        # Create system tools instance
+        system_tools = SystemManagementTools()
+        
+        # Call get_system_status
+        result = system_tools.get_system_status()
+        
+        # Verify basic response structure
+        assert isinstance(result, dict)
+        assert "success" in result
+        assert result["success"] is True
+        
+        # Verify system info is present
+        assert "system" in result
+        system_info = result["system"]
+        assert "version" in system_info
+        assert "project_root" in system_info
+        
+        # Verify data statistics
+        assert "data" in result
+        data_info = result["data"]
+        assert "total_storage" in data_info
+        assert "oldest_record" in data_info or "latest_record" in data_info
+        
+        # Verify cache status
+        assert "cache" in result
+        cache_info = result["cache"]
+        assert "total_entries" in cache_info
+        assert isinstance(cache_info["total_entries"], int)
+        
+        # Verify health status
+        assert "health" in result
+        assert result["health"] in ["healthy", "degraded", "unhealthy"]
+        
+    def test_system_status_error_handling(self, mcp_server_process):
+        """Test that get_system_status handles errors gracefully"""
+        from mcp_server.tools.system import SystemManagementTools
+        
+        # Create system tools instance with invalid project root
+        # This should not crash but may return limited information
+        system_tools = SystemManagementTools(project_root="/nonexistent/path")
+        
+        # Call get_system_status - should still return a valid response
+        result = system_tools.get_system_status()
+        
+        # Verify it returns a dict with success field
+        assert isinstance(result, dict)
+        assert "success" in result
+        # Even with invalid path, it should handle gracefully
+
+    def test_trigger_crawl_rss_platform(self, mcp_server_process):
+        """Test that trigger_crawl can successfully crawl an RSS platform like The Guardian"""
+        from mcp_server.tools.system import SystemManagementTools
+        
+        # Create system tools instance
+        system_tools = SystemManagementTools()
+        
+        # Crawl The Guardian RSS feed
+        result = system_tools.trigger_crawl(platforms=['theguardian'], debug=False)
+        
+        # Verify successful response
+        assert isinstance(result, dict)
+        assert "success" in result
+        assert result["success"] is True, f"Crawl failed: {result.get('error')}"
+        
+        # Verify crawl metadata
+        assert "status" in result
+        assert result["status"] == "completed"
+        assert "platforms" in result
+        assert "theguardian" in result["platforms"]
+        assert "total_news" in result
+        assert result["total_news"] > 0, "Expected to crawl at least some news items"
+        
+        # Verify no failed platforms
+        assert "failed_platforms" in result
+        assert len(result["failed_platforms"]) == 0
+        
+        # Verify data structure
+        assert "data" in result
+        assert isinstance(result["data"], list)
+        assert len(result["data"]) > 0
+        
+        # Check first item structure
+        first_item = result["data"][0]
+        assert "platform_id" in first_item
+        assert first_item["platform_id"] == "theguardian"
+        assert "platform_name" in first_item
+        assert first_item["platform_name"] == "The Guardian"
+        assert "title" in first_item
+        assert len(first_item["title"]) > 0
+        assert "ranks" in first_item
+        assert isinstance(first_item["ranks"], list)
+
+    def test_trigger_crawl_with_debug(self, mcp_server_process):
+        """Test that trigger_crawl works with debug mode enabled"""
+        from mcp_server.tools.system import SystemManagementTools
+        import io
+        import sys
+        
+        # Create system tools instance
+        system_tools = SystemManagementTools()
+        
+        # Capture stdout to verify debug output
+        captured_output = io.StringIO()
+        original_stdout = sys.stdout
+        sys.stdout = captured_output
+        
+        try:
+            # Crawl with debug enabled
+            result = system_tools.trigger_crawl(platforms=['theguardian'], debug=True)
+        finally:
+            sys.stdout = original_stdout
+        
+        # Check debug output was produced
+        debug_output = captured_output.getvalue()
+        assert "[DEBUG]" in debug_output, "Expected debug output with [DEBUG] prefix"
+        assert "Platform:" in debug_output or "crawler_type:" in debug_output
+        
+        # Verify successful response
+        assert isinstance(result, dict)
+        assert result.get("success") is True, f"Crawl failed: {result.get('error')}"
+
+    def test_trigger_crawl_german_rss_platform(self, mcp_server_process):
+        """Test that trigger_crawl can successfully crawl Der Spiegel RSS feed"""
+        from mcp_server.tools.system import SystemManagementTools
+        
+        # Create system tools instance
+        system_tools = SystemManagementTools()
+        
+        # Crawl Der Spiegel RSS feed
+        result = system_tools.trigger_crawl(platforms=['spiegel'], debug=False)
+        
+        # Verify successful response
+        assert isinstance(result, dict)
+        assert "success" in result
+        assert result["success"] is True, f"Crawl failed: {result.get('error')}"
+        
+        # Verify crawl metadata
+        assert result["total_news"] > 0, "Expected to crawl at least some news items"
+        assert "spiegel" in result["platforms"]
+        
+        # Verify data structure
+        assert len(result["data"]) > 0
+        first_item = result["data"][0]
+        assert first_item["platform_id"] == "spiegel"
+        assert first_item["platform_name"] == "Der Spiegel — Schlagzeilen"

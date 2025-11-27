@@ -11,6 +11,9 @@ import random
 import time
 import xml.etree.ElementTree as ET
 import requests
+import yaml
+import pytz
+from datetime import datetime
 
 from ..services.data_service import DataService
 from ..utils.validators import validate_platforms
@@ -70,7 +73,7 @@ class SystemManagementTools:
                 }
             }
 
-    def trigger_crawl(self, platforms: List[str] = None, save_to_local: bool = False, include_url: bool = False) -> Dict:
+    def trigger_crawl(self, platforms: List[str] = None, save_to_local: bool = False, include_url: bool = False, debug: bool = False) -> Dict:
         """
         手动触发一次临时爬取任务（可选持久化）
 
@@ -78,6 +81,7 @@ class SystemManagementTools:
             platforms: 指定平台列表，为空则爬取所有平台
             save_to_local: 是否保存到本地 output 目录，默认 False
             include_url: 是否包含URL链接，默认False（节省token）
+            debug: 是否启用调试模式，默认False（启用时输出详细日志）
 
         Returns:
             爬取结果字典，包含新闻数据和保存路径（如果保存）
@@ -90,8 +94,15 @@ class SystemManagementTools:
             >>> # 爬取并保存到本地
             >>> result = tools.trigger_crawl(platforms=['zhihu'], save_to_local=True)
             >>> print(result['saved_files'])
+            >>> # 启用调试模式
+            >>> result = tools.trigger_crawl(platforms=['theguardian'], debug=True)
         """
-        print(f"🔄 System trigger_crawl initiated - platforms: {platforms or 'all'}, save_to_local: {save_to_local}, include_url: {include_url}")
+        print(f"🔄 System trigger_crawl initiated - platforms: {platforms or 'all'}, save_to_local: {save_to_local}, include_url: {include_url}, debug: {debug}")
+        
+        # Debug log helper
+        def debug_log(msg: str):
+            if debug:
+                print(f"[DEBUG] {msg}")
         
         try:
             # 参数验证
@@ -157,6 +168,7 @@ class SystemManagementTools:
                 url_template = crawler_cfg.get("url_template")
 
                 # Build URL based on crawler type
+                debug_log(f"Platform: {id_value}, crawler_type: {crawler_type}, url_template: {url_template}")
                 if url_template:
                     try:
                         url = url_template.format(id=id_value)
@@ -168,6 +180,7 @@ class SystemManagementTools:
                 else:
                     # Default: original newsnow endpoint
                     url = f"https://newsnow.busiyi.world/api/s?id={id_value}&latest"
+                debug_log(f"Final URL: {url}")
 
                 headers = {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -178,17 +191,25 @@ class SystemManagementTools:
                 }
 
                 # Handle different crawler types
+                debug_log(f"Using crawler type: {crawler_type}")
                 if crawler_type in ["rss", "googlenews"]:
                     # RSS/Google News parsing logic
                     max_retries = 2
                     retries = 0
                     success = False
+                    debug_log(f"Starting RSS/Google News fetch for {id_value}")
 
                     while retries <= max_retries and not success:
                         try:
+                            debug_log(f"Attempt {retries + 1}/{max_retries + 1}: Fetching {url}")
                             response = requests.get(url, headers=headers, timeout=15)
+                            debug_log(f"Response status: {response.status_code}")
                             response.raise_for_status()
                             text = response.text
+                            debug_log(f"Response length: {len(text)} bytes")
+                            if debug:
+                                # Log first 500 chars of response in debug mode
+                                debug_log(f"Response preview: {text[:500]}...")
 
                             # Parse XML
                             import xml.etree.ElementTree as ET
@@ -198,7 +219,7 @@ class SystemManagementTools:
                                 root = ET.fromstring(text)
                                 
                                 if crawler_type == "rss":
-                                    # RSS items
+                                    # RSS 2.0 items
                                     rss_items = root.findall(".//item")
                                     for item in rss_items:
                                         title_el = item.find("title")
@@ -217,6 +238,16 @@ class SystemManagementTools:
                                         link = ""
                                         if link_el is not None:
                                             link = link_el.get("href", "") or (link_el.text or "")
+                                        if title:
+                                            items.append({"title": title, "url": link})
+                                    
+                                    # RDF/RSS 1.0 items (used by Slashdot)
+                                    rdf_items = root.findall(".//{http://purl.org/rss/1.0/}item")
+                                    for item in rdf_items:
+                                        title_el = item.find("{http://purl.org/rss/1.0/}title")
+                                        link_el = item.find("{http://purl.org/rss/1.0/}link")
+                                        title = title_el.text.strip() if title_el is not None and title_el.text else ""
+                                        link = link_el.text.strip() if link_el is not None and link_el.text else ""
                                         if title:
                                             items.append({"title": title, "url": link})
                                 
@@ -240,6 +271,9 @@ class SystemManagementTools:
                                             items.append({"title": title, "url": link})
 
                                 print(f"获取 {id_value} 成功（{crawler_type.upper()} -> parsed {len(items)} items）")
+                                debug_log(f"Parsed {len(items)} items from {crawler_type.upper()} feed")
+                                if debug and items:
+                                    debug_log(f"First 3 items: {items[:3]}")
 
                                 # Convert to expected format
                                 results[id_value] = {}
@@ -256,35 +290,42 @@ class SystemManagementTools:
                                             "mobileUrl": "",
                                         }
 
+                                debug_log(f"Converted to {len(results[id_value])} unique titles")
                                 success = True
 
                             except ET.ParseError as e:
                                 retries += 1
+                                debug_log(f"XML ParseError: {e}")
                                 if retries <= max_retries:
                                     wait_time = random.uniform(3, 5)
                                     print(f"请求 {id_value} 失败: Failed to parse {crawler_type.upper()} XML: {e}. {wait_time:.2f}秒后重试...")
                                     time.sleep(wait_time)
                                 else:
                                     print(f"请求 {id_value} 失败: Failed to parse {crawler_type.upper()} XML: {e}")
+                                    debug_log(f"Max retries reached for {id_value}, adding to failed_ids")
                                     failed_ids.append(id_value)
                             except Exception as e:
                                 retries += 1
+                                debug_log(f"Exception during XML parsing: {type(e).__name__}: {e}")
                                 if retries <= max_retries:
                                     wait_time = random.uniform(3, 5)
                                     print(f"请求 {id_value} 失败: {e}. {wait_time:.2f}秒后重试...")
                                     time.sleep(wait_time)
                                 else:
                                     print(f"请求 {id_value} 失败: {e}")
+                                    debug_log(f"Max retries reached for {id_value}, adding to failed_ids")
                                     failed_ids.append(id_value)
 
                         except Exception as e:
                             retries += 1
+                            debug_log(f"Request exception: {type(e).__name__}: {e}")
                             if retries <= max_retries:
                                 wait_time = random.uniform(3, 5)
                                 print(f"请求 {id_value} 失败: {e}. {wait_time:.2f}秒后重试...")
                                 time.sleep(wait_time)
                             else:
                                 print(f"请求 {id_value} 失败: {e}")
+                                debug_log(f"Max retries reached for {id_value}, adding to failed_ids")
                                 failed_ids.append(id_value)
 
                 else:
