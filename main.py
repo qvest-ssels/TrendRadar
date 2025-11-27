@@ -16,6 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Union
 
+import argparse
 import pytz
 import requests
 import yaml
@@ -463,8 +464,9 @@ class PushRecordManager:
 class DataFetcher:
     """Data Fetcher"""
 
-    def __init__(self, proxy_url: Optional[str] = None):
+    def __init__(self, proxy_url: Optional[str] = None, debug_mode: bool = False):
         self.proxy_url = proxy_url
+        self.debug_mode = debug_mode
 
     def fetch_data(
         self,
@@ -481,6 +483,9 @@ class DataFetcher:
          - dict with keys: id, name, crawler (type, url_template)
         Returns text compatible with original interface (newsnow style JSON or RSS converted JSON text)
         """
+        if self.debug_mode:
+            print(f"🔍 Starting fetch for: {id_info}")
+            
         crawler_type = "newsnow"
         url_template = None
 
@@ -514,6 +519,12 @@ class DataFetcher:
         if self.proxy_url:
             proxies = {"http": self.proxy_url, "https": self.proxy_url}
 
+        if self.debug_mode:
+            print(f"  📡 Using crawler type: {crawler_type}")
+            print(f"  🔗 Target URL: {url}")
+            if proxies:
+                print(f"  🌐 Using proxy: {self.proxy_url}")
+
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             "Accept": "application/json, text/plain, */*",
@@ -527,16 +538,31 @@ class DataFetcher:
             try:
                 # Handle RSS feeds
                 if crawler_type == "rss":
+                    if self.debug_mode:
+                        print(f"  🌐 Fetching RSS feed: {url}")
+                    
                     response = requests.get(url, proxies=proxies, headers=headers, timeout=15)
                     response.raise_for_status()
                     text = response.text
+                    
+                    if self.debug_mode:
+                        print(f"  📄 Response received: {len(text)} characters")
+                        print(f"  🔍 Content-Type: {response.headers.get('content-type', 'unknown')}")
                     
                     # Parse RSS/Atom XML
                     items = []
                     try:
                         root = ET.fromstring(text)
+                        
+                        if self.debug_mode:
+                            print(f"  📋 XML root tag: {root.tag}")
+                        
                         # RSS items
-                        for item in root.findall(".//item"):
+                        rss_items = root.findall(".//item")
+                        if self.debug_mode:
+                            print(f"  📰 Found {len(rss_items)} RSS items")
+                        
+                        for item in rss_items:
                             title_el = item.find("title")
                             link_el = item.find("link")
                             title = title_el.text.strip() if title_el is not None and title_el.text else ""
@@ -545,7 +571,11 @@ class DataFetcher:
                                 items.append({"title": title, "url": link})
                         
                         # Atom entries
-                        for entry in root.findall(".//{http://www.w3.org/2005/Atom}entry"):
+                        atom_entries = root.findall(".//{http://www.w3.org/2005/Atom}entry")
+                        if self.debug_mode:
+                            print(f"  📰 Found {len(atom_entries)} Atom entries")
+                        
+                        for entry in atom_entries:
                             title_el = entry.find("{http://www.w3.org/2005/Atom}title")
                             link_el = entry.find("{http://www.w3.org/2005/Atom}link")
                             title = title_el.text.strip() if title_el is not None and title_el.text else ""
@@ -554,8 +584,20 @@ class DataFetcher:
                                 link = link_el.get("href", "") or (link_el.text or "")
                             if title:
                                 items.append({"title": title, "url": link})
+                        
+                        if self.debug_mode:
+                            print(f"  ✅ Successfully parsed {len(items)} total items")
+                            
+                    except ET.ParseError as e:
+                        print(f"❌ Failed to parse RSS/Atom XML for {id_value}: {e}")
+                        if self.debug_mode:
+                            print(f"  📄 Raw response (first 500 chars): {text[:500]}...")
+                        items = []
                     except Exception as e:
-                        print(f"Failed to parse RSS/Atom XML for {id_value}: {e}")
+                        print(f"❌ Unexpected error parsing RSS/Atom for {id_value}: {e}")
+                        if self.debug_mode:
+                            import traceback
+                            traceback.print_exc()
                         items = []
                     
                     data_obj = {"status": "success", "items": items}
@@ -4371,7 +4413,8 @@ class NewsAnalyzer:
         },
     }
 
-    def __init__(self):
+    def __init__(self, debug_mode=False):
+        self.debug_mode = debug_mode
         self.request_interval = CONFIG["REQUEST_INTERVAL"]
         self.report_mode = CONFIG["REPORT_MODE"]
         self.rank_threshold = CONFIG["RANK_THRESHOLD"]
@@ -4380,7 +4423,7 @@ class NewsAnalyzer:
         self.update_info = None
         self.proxy_url = None
         self._setup_proxy()
-        self.data_fetcher = DataFetcher(self.proxy_url)
+        self.data_fetcher = DataFetcher(self.proxy_url, self.debug_mode)
 
         if self.is_github_actions:
             self._check_version_update()
@@ -4867,11 +4910,138 @@ class NewsAnalyzer:
             print(f"分析流程执行出错: {e}")
             raise
 
+    def _load_platforms(self):
+        """Load platforms from configuration"""
+        return CONFIG["PLATFORMS"]
+
+    def test_crawl(self, platform_filter="all"):
+        """Test crawling for specific platform(s)"""
+        print(f"🔍 Testing crawl for platform(s): {platform_filter}")
+        print("=" * 60)
+
+        try:
+            self._initialize_and_check_config()
+
+            # Load platforms
+            platforms = self._load_platforms()
+
+            if platform_filter == "all":
+                test_platforms = platforms
+            else:
+                test_platforms = [p for p in platforms if p["id"] == platform_filter]
+                if not test_platforms:
+                    print(f"❌ Platform '{platform_filter}' not found in configuration")
+                    return
+
+            print(f"Testing {len(test_platforms)} platform(s)...\n")
+
+            for platform in test_platforms:
+                print(f"🧪 Testing platform: {platform['name']} ({platform['id']})")
+                print("-" * 50)
+
+                try:
+                    # Test the crawl
+                    result = self.data_fetcher.fetch_data(platform)
+                    data_text, platform_id, platform_alias = result
+                    
+                    # Parse the JSON response to get items
+                    data_obj = json.loads(data_text)
+                    items = data_obj.get("items", [])
+
+                    print(f"✅ Success: Retrieved {len(items)} items")
+
+                    if self.debug_mode:
+                        print("📋 Sample items:")
+                        for i, item in enumerate(items[:3]):  # Show first 3 items
+                            if isinstance(item, dict):
+                                print(f"  {i+1}. {item.get('title', 'No title')[:80]}...")
+                                if item.get('url'):
+                                    print(f"     URL: {item['url']}")
+                            else:
+                                print(f"  {i+1}. {str(item)[:80]}...")
+                        if len(items) > 3:
+                            print(f"  ... and {len(items) - 3} more items")
+
+                except Exception as e:
+                    print(f"❌ Failed: {str(e)}")
+                    if self.debug_mode:
+                        import traceback
+                        traceback.print_exc()
+
+                print()
+
+        except Exception as e:
+            print(f"❌ Test setup failed: {e}")
+            if self.debug_mode:
+                import traceback
+                traceback.print_exc()
+
+    def quick_test(self):
+        """Run quick test - crawl all platforms once and show results"""
+        print("🚀 Quick Test Mode - Crawling all platforms once")
+        print("=" * 60)
+
+        try:
+            self._initialize_and_check_config()
+
+            results, id_to_name, failed_ids = self._crawl_data()
+
+            print("\n📊 Quick Test Results:")
+            print("=" * 40)
+
+            total_items = 0
+            for platform_id, items in results.items():
+                platform_name = id_to_name.get(platform_id, platform_id)
+                item_count = len(items)
+                total_items += item_count
+
+                status = "✅" if item_count > 0 else "❌"
+                print(f"{status} {platform_name}: {item_count} items")
+
+                if self.debug_mode and item_count > 0:
+                    print("   Sample items:")
+                    for i, item in enumerate(items[:2]):
+                        title = item.get('title', 'No title')[:60]
+                        print(f"   • {title}...")
+                    print()
+
+            print(f"\n📈 Total: {total_items} items from {len(results)} platforms")
+
+            if failed_ids:
+                print(f"\n❌ Failed platforms: {', '.join(failed_ids)}")
+
+            print("\n✅ Quick test completed!")
+
+        except Exception as e:
+            print(f"❌ Quick test failed: {e}")
+            if self.debug_mode:
+                import traceback
+                traceback.print_exc()
+
 
 def main():
+    parser = argparse.ArgumentParser(description="TrendRadar - News Trend Analysis Tool")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode with detailed logging")
+    parser.add_argument("--test-crawl", nargs="?", const="all", metavar="PLATFORM_ID",
+                       help="Test crawling for specific platform or all platforms (default: all)")
+    parser.add_argument("--quick-test", action="store_true",
+                       help="Run quick test mode - crawl once and exit")
+
+    args = parser.parse_args()
+
     try:
-        analyzer = NewsAnalyzer()
-        analyzer.run()
+        if args.test_crawl:
+            # Test crawl mode
+            analyzer = NewsAnalyzer(debug_mode=args.debug)
+            analyzer.test_crawl(args.test_crawl)
+        elif args.quick_test:
+            # Quick test mode
+            analyzer = NewsAnalyzer(debug_mode=args.debug)
+            analyzer.quick_test()
+        else:
+            # Normal operation
+            analyzer = NewsAnalyzer(debug_mode=args.debug)
+            analyzer.run()
     except FileNotFoundError as e:
         print(f"❌ 配置文件错误: {e}")
         print("\n请确保以下文件存在:")
@@ -4880,6 +5050,9 @@ def main():
         print("\n参考项目文档进行正确配置")
     except Exception as e:
         print(f"❌ 程序运行错误: {e}")
+        if args.debug:
+            import traceback
+            traceback.print_exc()
         raise
 
 

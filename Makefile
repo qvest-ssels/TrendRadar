@@ -11,6 +11,8 @@ help:
 	@echo "  start-server   - Start MCP server in background"
 	@echo "  stop-server    - Stop running MCP server"
 	@echo "  server-status  - Check MCP server status"
+	@echo "  quick-test     - Run quick crawl test for all platforms"
+	@echo "  test-crawl     - Test crawling for specific platform (usage: make test-crawl PLATFORM=spiegel)"
 	@echo "  clean          - Clean up cache files"
 	@echo "  help           - Show this help message"
 
@@ -91,6 +93,20 @@ server-status:
 			rm -f .mcp_server.pid; \
 		fi; \
 	fi
+
+# Run quick test - crawl all platforms once
+quick-test:
+	./.venv/bin/python main.py --quick-test
+
+# Test crawling for specific platform (usage: make test-crawl PLATFORM=spiegel)
+test-crawl:
+	@if [ -z "$(PLATFORM)" ]; then \
+		echo "Usage: make test-crawl PLATFORM=<platform_id>"; \
+		echo "Example: make test-crawl PLATFORM=spiegel"; \
+		echo "Or test all platforms: make test-crawl PLATFORM=all"; \
+		exit 1; \
+	fi
+	./.venv/bin/python main.py --test-crawl $(PLATFORM)
 
 # Clean up cache files
 clean:
