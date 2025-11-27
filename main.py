@@ -7,6 +7,7 @@ import re
 import time
 import webbrowser
 import smtplib
+import xml.etree.ElementTree as ET
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.header import Header
@@ -23,13 +24,13 @@ import yaml
 VERSION = "3.3.0"
 
 
-# === SMTP邮件配置 ===
+# === SMTP Email Configuration ===
 SMTP_CONFIGS = {
-    # Gmail（使用 STARTTLS）
+    # Gmail (using STARTTLS)
     "gmail.com": {"server": "smtp.gmail.com", "port": 587, "encryption": "TLS"},
-    # QQ邮箱（使用 SSL，更稳定）
+    # QQ Mail (using SSL, more stable)
     "qq.com": {"server": "smtp.qq.com", "port": 465, "encryption": "SSL"},
-    # Outlook（使用 STARTTLS）
+    # Outlook (using STARTTLS)
     "outlook.com": {
         "server": "smtp-mail.outlook.com",
         "port": 587,
@@ -41,37 +42,38 @@ SMTP_CONFIGS = {
         "encryption": "TLS",
     },
     "live.com": {"server": "smtp-mail.outlook.com", "port": 587, "encryption": "TLS"},
-    # 网易邮箱（使用 SSL，更稳定）
+    # NetEase Mail (using SSL, more stable)
     "163.com": {"server": "smtp.163.com", "port": 465, "encryption": "SSL"},
     "126.com": {"server": "smtp.126.com", "port": 465, "encryption": "SSL"},
-    # 新浪邮箱（使用 SSL）
+    # Sina Mail (using SSL)
     "sina.com": {"server": "smtp.sina.com", "port": 465, "encryption": "SSL"},
-    # 搜狐邮箱（使用 SSL）
+    # Sohu Mail (using SSL)
     "sohu.com": {"server": "smtp.sohu.com", "port": 465, "encryption": "SSL"},
-    # 天翼邮箱（使用 SSL）
+    # China Telecom Mail (using SSL)
     "189.cn": {"server": "smtp.189.cn", "port": 465, "encryption": "SSL"},
-    # 阿里云邮箱（使用 TLS）
+    # Alibaba Cloud Mail (using TLS)
     "aliyun.com": {"server": "smtp.aliyun.com", "port": 465, "encryption": "TLS"},
 }
 
 
-# === 配置管理 ===
+# === Configuration Management ===
 def load_config():
-    """加载配置文件"""
+    """Load configuration file"""
     config_path = os.environ.get("CONFIG_PATH", "config/config.yaml")
 
     if not Path(config_path).exists():
-        raise FileNotFoundError(f"配置文件 {config_path} 不存在")
+        raise FileNotFoundError(f"Configuration file {config_path} does not exist")
 
     with open(config_path, "r", encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
-    print(f"配置文件加载成功: {config_path}")
+    print(f"Configuration file loaded successfully: {config_path}")
 
-    # 构建配置
+    # Build configuration
     config = {
         "VERSION_CHECK_URL": config_data["app"]["version_check_url"],
         "SHOW_VERSION_UPDATE": config_data["app"]["show_version_update"],
+        "TIMEZONE": os.environ.get("TIMEZONE", "").strip() or config_data["app"].get("timezone", "Asia/Shanghai"),
         "REQUEST_INTERVAL": config_data["crawler"]["request_interval"],
         "REPORT_MODE": os.environ.get("REPORT_MODE", "").strip()
         or config_data["report"]["mode"],
@@ -144,7 +146,7 @@ def load_config():
         "PLATFORMS": config_data["platforms"],
     }
 
-    # 通知渠道配置（环境变量优先）
+    # Notification channel configuration (environment variables take priority)
     notification = config_data.get("notification", {})
     webhooks = notification.get("webhooks", {})
 
@@ -167,7 +169,7 @@ def load_config():
         "TELEGRAM_CHAT_ID", ""
     ).strip() or webhooks.get("telegram_chat_id", "")
 
-    # 邮件配置
+    # Email configuration
     config["EMAIL_FROM"] = os.environ.get("EMAIL_FROM", "").strip() or webhooks.get(
         "email_from", ""
     )
@@ -184,7 +186,7 @@ def load_config():
         "EMAIL_SMTP_PORT", ""
     ).strip() or webhooks.get("email_smtp_port", "")
 
-    # ntfy配置
+    # ntfy configuration
     config["NTFY_SERVER_URL"] = (
         os.environ.get("NTFY_SERVER_URL", "").strip()
         or webhooks.get("ntfy_server_url")
@@ -197,72 +199,72 @@ def load_config():
         "ntfy_token", ""
     )
 
-    # Bark配置
+    # Bark configuration
     config["BARK_URL"] = os.environ.get("BARK_URL", "").strip() or webhooks.get(
         "bark_url", ""
     )
 
-    # 输出配置来源信息
+    # Output configuration source information
     notification_sources = []
     if config["FEISHU_WEBHOOK_URL"]:
-        source = "环境变量" if os.environ.get("FEISHU_WEBHOOK_URL") else "配置文件"
-        notification_sources.append(f"飞书({source})")
+        source = "environment variable" if os.environ.get("FEISHU_WEBHOOK_URL") else "configuration file"
+        notification_sources.append(f"Feishu({source})")
     if config["DINGTALK_WEBHOOK_URL"]:
-        source = "环境变量" if os.environ.get("DINGTALK_WEBHOOK_URL") else "配置文件"
-        notification_sources.append(f"钉钉({source})")
+        source = "environment variable" if os.environ.get("DINGTALK_WEBHOOK_URL") else "configuration file"
+        notification_sources.append(f"DingTalk({source})")
     if config["WEWORK_WEBHOOK_URL"]:
-        source = "环境变量" if os.environ.get("WEWORK_WEBHOOK_URL") else "配置文件"
-        notification_sources.append(f"企业微信({source})")
+        source = "environment variable" if os.environ.get("WEWORK_WEBHOOK_URL") else "configuration file"
+        notification_sources.append(f"WeWork({source})")
     if config["TELEGRAM_BOT_TOKEN"] and config["TELEGRAM_CHAT_ID"]:
         token_source = (
-            "环境变量" if os.environ.get("TELEGRAM_BOT_TOKEN") else "配置文件"
+            "environment variable" if os.environ.get("TELEGRAM_BOT_TOKEN") else "configuration file"
         )
-        chat_source = "环境变量" if os.environ.get("TELEGRAM_CHAT_ID") else "配置文件"
+        chat_source = "environment variable" if os.environ.get("TELEGRAM_CHAT_ID") else "configuration file"
         notification_sources.append(f"Telegram({token_source}/{chat_source})")
     if config["EMAIL_FROM"] and config["EMAIL_PASSWORD"] and config["EMAIL_TO"]:
-        from_source = "环境变量" if os.environ.get("EMAIL_FROM") else "配置文件"
-        notification_sources.append(f"邮件({from_source})")
+        from_source = "environment variable" if os.environ.get("EMAIL_FROM") else "configuration file"
+        notification_sources.append(f"Email({from_source})")
 
     if config["NTFY_SERVER_URL"] and config["NTFY_TOPIC"]:
-        server_source = "环境变量" if os.environ.get("NTFY_SERVER_URL") else "配置文件"
+        server_source = "environment variable" if os.environ.get("NTFY_SERVER_URL") else "configuration file"
         notification_sources.append(f"ntfy({server_source})")
 
     if config["BARK_URL"]:
-        bark_source = "环境变量" if os.environ.get("BARK_URL") else "配置文件"
+        bark_source = "environment variable" if os.environ.get("BARK_URL") else "configuration file"
         notification_sources.append(f"Bark({bark_source})")
 
     if notification_sources:
-        print(f"通知渠道配置来源: {', '.join(notification_sources)}")
+        print(f"Notification channel configuration sources: {', '.join(notification_sources)}")
     else:
-        print("未配置任何通知渠道")
+        print("No notification channels configured")
 
     return config
 
 
-print("正在加载配置...")
+print("Loading configuration...")
 CONFIG = load_config()
-print(f"TrendRadar v{VERSION} 配置加载完成")
-print(f"监控平台数量: {len(CONFIG['PLATFORMS'])}")
+print(f"TrendRadar v{VERSION} configuration loaded")
+print(f"Number of monitored platforms: {len(CONFIG['PLATFORMS'])}")
 
 
-# === 工具函数 ===
-def get_beijing_time():
-    """获取北京时间"""
-    return datetime.now(pytz.timezone("Asia/Shanghai"))
+# === Utility Functions ===
+def get_local_time():
+    """Get local time (based on configured timezone)"""
+    return datetime.now(pytz.timezone(CONFIG["TIMEZONE"]))
 
 
 def format_date_folder():
-    """格式化日期文件夹"""
-    return get_beijing_time().strftime("%Y年%m月%d日")
+    """Format date folder"""
+    return get_local_time().strftime("%Y年%m月%d日")
 
 
 def format_time_filename():
-    """格式化时间文件名"""
-    return get_beijing_time().strftime("%H时%M分")
+    """Format time filename"""
+    return get_local_time().strftime("%H时%M分")
 
 
 def clean_title(title: str) -> str:
-    """清理标题中的特殊字符"""
+    """Clean special characters from title"""
     if not isinstance(title, str):
         title = str(title)
     cleaned_title = title.replace("\n", " ").replace("\r", " ")
@@ -272,12 +274,12 @@ def clean_title(title: str) -> str:
 
 
 def ensure_directory_exists(directory: str):
-    """确保目录存在"""
+    """Ensure directory exists"""
     Path(directory).mkdir(parents=True, exist_ok=True)
 
 
 def get_output_path(subfolder: str, filename: str) -> str:
-    """获取输出路径"""
+    """Get output path"""
     date_folder = format_date_folder()
     output_dir = Path("output") / date_folder / subfolder
     ensure_directory_exists(str(output_dir))
@@ -287,7 +289,7 @@ def get_output_path(subfolder: str, filename: str) -> str:
 def check_version_update(
     current_version: str, version_url: str, proxy_url: Optional[str] = None
 ) -> Tuple[bool, Optional[str]]:
-    """检查版本更新"""
+    """Check for version updates"""
     try:
         proxies = None
         if proxy_url:
@@ -305,14 +307,14 @@ def check_version_update(
         response.raise_for_status()
 
         remote_version = response.text.strip()
-        print(f"当前版本: {current_version}, 远程版本: {remote_version}")
+        print(f"Current version: {current_version}, Remote version: {remote_version}")
 
-        # 比较版本
+        # Compare versions
         def parse_version(version_str):
             try:
                 parts = version_str.strip().split(".")
                 if len(parts) != 3:
-                    raise ValueError("版本号格式不正确")
+                    raise ValueError("Incorrect version number format")
                 return int(parts[0]), int(parts[1]), int(parts[2])
             except:
                 return 0, 0, 0
@@ -324,12 +326,12 @@ def check_version_update(
         return need_update, remote_version if need_update else None
 
     except Exception as e:
-        print(f"版本检查失败: {e}")
+        print(f"Version check failed: {e}")
         return False, None
 
 
 def is_first_crawl_today() -> bool:
-    """检测是否是当天第一次爬取"""
+    """Detect if this is the first crawl of the day"""
     date_folder = format_date_folder()
     txt_dir = Path("output") / date_folder / "txt"
 
@@ -341,7 +343,7 @@ def is_first_crawl_today() -> bool:
 
 
 def html_escape(text: str) -> str:
-    """HTML转义"""
+    """HTML escape"""
     if not isinstance(text, str):
         text = str(text)
 
@@ -354,9 +356,9 @@ def html_escape(text: str) -> str:
     )
 
 
-# === 推送记录管理 ===
+# === Push Record Management ===
 class PushRecordManager:
-    """推送记录管理器"""
+    """Push record manager"""
 
     def __init__(self):
         self.record_dir = Path("output") / ".push_records"
@@ -364,33 +366,33 @@ class PushRecordManager:
         self.cleanup_old_records()
 
     def ensure_record_dir(self):
-        """确保记录目录存在"""
+        """Ensure record directory exists"""
         self.record_dir.mkdir(parents=True, exist_ok=True)
 
     def get_today_record_file(self) -> Path:
-        """获取今天的记录文件路径"""
-        today = get_beijing_time().strftime("%Y%m%d")
+        """Get today's record file path"""
+        today = get_local_time().strftime("%Y%m%d")
         return self.record_dir / f"push_record_{today}.json"
 
     def cleanup_old_records(self):
-        """清理过期的推送记录"""
+        """Clean up expired push records"""
         retention_days = CONFIG["PUSH_WINDOW"]["RECORD_RETENTION_DAYS"]
-        current_time = get_beijing_time()
+        current_time = get_local_time()
 
         for record_file in self.record_dir.glob("push_record_*.json"):
             try:
                 date_str = record_file.stem.replace("push_record_", "")
                 file_date = datetime.strptime(date_str, "%Y%m%d")
-                file_date = pytz.timezone("Asia/Shanghai").localize(file_date)
+                file_date = pytz.timezone(CONFIG["TIMEZONE"]).localize(file_date)
 
                 if (current_time - file_date).days > retention_days:
                     record_file.unlink()
-                    print(f"清理过期推送记录: {record_file.name}")
+                    print(f"Cleaned up expired push record: {record_file.name}")
             except Exception as e:
-                print(f"清理记录文件失败 {record_file}: {e}")
+                print(f"Failed to clean up record file {record_file}: {e}")
 
     def has_pushed_today(self) -> bool:
-        """检查今天是否已经推送过"""
+        """Check if already pushed today"""
         record_file = self.get_today_record_file()
 
         if not record_file.exists():
@@ -401,13 +403,13 @@ class PushRecordManager:
                 record = json.load(f)
             return record.get("pushed", False)
         except Exception as e:
-            print(f"读取推送记录失败: {e}")
+            print(f"Failed to read push record: {e}")
             return False
 
     def record_push(self, report_type: str):
-        """记录推送"""
+        """Record push"""
         record_file = self.get_today_record_file()
-        now = get_beijing_time()
+        now = get_local_time()
 
         record = {
             "pushed": True,
@@ -418,67 +420,95 @@ class PushRecordManager:
         try:
             with open(record_file, "w", encoding="utf-8") as f:
                 json.dump(record, f, ensure_ascii=False, indent=2)
-            print(f"推送记录已保存: {report_type} at {now.strftime('%H:%M:%S')}")
+            print(f"Push record saved: {report_type} at {now.strftime('%H:%M:%S')}")
         except Exception as e:
-            print(f"保存推送记录失败: {e}")
+            print(f"Failed to save push record: {e}")
 
     def is_in_time_range(self, start_time: str, end_time: str) -> bool:
-        """检查当前时间是否在指定时间范围内"""
-        now = get_beijing_time()
+        """Check if current time is within specified time range"""
+        now = get_local_time()
         current_time = now.strftime("%H:%M")
     
         def normalize_time(time_str: str) -> str:
-            """将时间字符串标准化为 HH:MM 格式"""
+            """Normalize time string to HH:MM format"""
             try:
                 parts = time_str.strip().split(":")
                 if len(parts) != 2:
-                    raise ValueError(f"时间格式错误: {time_str}")
-            
+                    raise ValueError(f"Time format error: {time_str}")
+
                 hour = int(parts[0])
                 minute = int(parts[1])
-            
+
                 if not (0 <= hour <= 23 and 0 <= minute <= 59):
-                    raise ValueError(f"时间范围错误: {time_str}")
-            
+                    raise ValueError(f"Time range error: {time_str}")
+
                 return f"{hour:02d}:{minute:02d}"
             except Exception as e:
-                print(f"时间格式化错误 '{time_str}': {e}")
+                print(f"Time formatting error '{time_str}': {e}")
                 return time_str
-    
+
         normalized_start = normalize_time(start_time)
         normalized_end = normalize_time(end_time)
         normalized_current = normalize_time(current_time)
-    
+
         result = normalized_start <= normalized_current <= normalized_end
-    
+
         if not result:
-            print(f"时间窗口判断：当前 {normalized_current}，窗口 {normalized_start}-{normalized_end}")
-    
+            print(f"Time window check: current {normalized_current}, window {normalized_start}-{normalized_end}")
+
         return result
 
 
-# === 数据获取 ===
+# === Data Fetching ===
 class DataFetcher:
-    """数据获取器"""
+    """Data Fetcher"""
 
     def __init__(self, proxy_url: Optional[str] = None):
         self.proxy_url = proxy_url
 
     def fetch_data(
         self,
-        id_info: Union[str, Tuple[str, str]],
+        id_info: Union[str, Tuple[str, str], Dict],
         max_retries: int = 2,
         min_retry_wait: int = 3,
         max_retry_wait: int = 5,
     ) -> Tuple[Optional[str], str, str]:
-        """获取指定ID数据，支持重试"""
+        """Get specified ID data, supports retry and custom crawler configuration.
+
+        id_info can be:
+         - string id
+         - tuple (id, alias)
+         - dict with keys: id, name, crawler (type, url_template)
+        Returns text compatible with original interface (newsnow style JSON or RSS converted JSON text)
+        """
+        crawler_type = "newsnow"
+        url_template = None
+
+        # 解析 id_info
         if isinstance(id_info, tuple):
             id_value, alias = id_info
+        elif isinstance(id_info, dict):
+            id_value = id_info.get("id") or id_info.get("source") or ""
+            alias = id_info.get("name") or id_value
+            crawler_cfg = id_info.get("crawler", {}) or {}
+            crawler_type = crawler_cfg.get("type", "newsnow")
+            url_template = crawler_cfg.get("url_template")
         else:
             id_value = id_info
             alias = id_value
 
-        url = f"https://newsnow.busiyi.world/api/s?id={id_value}&latest"
+        # 构建 URL
+        if url_template:
+            try:
+                url = url_template.format(id=id_value)
+            except Exception:
+                url = url_template
+        elif crawler_type == "rss":
+            # For RSS, use the id_value directly if it's a URL, or the url_template
+            url = id_value if id_value.startswith(("http://", "https://")) else f"https://www.spiegel.de/schlagzeilen/index.rss"
+        else:
+            # Default: original newsnow endpoint
+            url = f"https://newsnow.busiyi.world/api/s?id={id_value}&latest"
 
         proxies = None
         if self.proxy_url:
@@ -495,9 +525,46 @@ class DataFetcher:
         retries = 0
         while retries <= max_retries:
             try:
-                response = requests.get(
-                    url, proxies=proxies, headers=headers, timeout=10
-                )
+                # Handle RSS feeds
+                if crawler_type == "rss":
+                    response = requests.get(url, proxies=proxies, headers=headers, timeout=15)
+                    response.raise_for_status()
+                    text = response.text
+                    
+                    # Parse RSS/Atom XML
+                    items = []
+                    try:
+                        root = ET.fromstring(text)
+                        # RSS items
+                        for item in root.findall(".//item"):
+                            title_el = item.find("title")
+                            link_el = item.find("link")
+                            title = title_el.text.strip() if title_el is not None and title_el.text else ""
+                            link = link_el.text.strip() if link_el is not None and link_el.text else ""
+                            if title:
+                                items.append({"title": title, "url": link})
+                        
+                        # Atom entries
+                        for entry in root.findall(".//{http://www.w3.org/2005/Atom}entry"):
+                            title_el = entry.find("{http://www.w3.org/2005/Atom}title")
+                            link_el = entry.find("{http://www.w3.org/2005/Atom}link")
+                            title = title_el.text.strip() if title_el is not None and title_el.text else ""
+                            link = ""
+                            if link_el is not None:
+                                link = link_el.get("href", "") or (link_el.text or "")
+                            if title:
+                                items.append({"title": title, "url": link})
+                    except Exception as e:
+                        print(f"Failed to parse RSS/Atom XML for {id_value}: {e}")
+                        items = []
+                    
+                    data_obj = {"status": "success", "items": items}
+                    data_text = json.dumps(data_obj, ensure_ascii=False)
+                    print(f"获取 {id_value} 成功（RSS -> converted to JSON, {len(items)} items）")
+                    return data_text, id_value, alias
+
+                # Handle standard JSON API
+                response = requests.get(url, proxies=proxies, headers=headers, timeout=10)
                 response.raise_for_status()
 
                 data_text = response.text
@@ -526,16 +593,20 @@ class DataFetcher:
 
     def crawl_websites(
         self,
-        ids_list: List[Union[str, Tuple[str, str]]],
+        ids_list: List[Union[str, Tuple[str, str], Dict]],
         request_interval: int = CONFIG["REQUEST_INTERVAL"],
     ) -> Tuple[Dict, Dict, List]:
-        """爬取多个网站数据"""
+        """爬取多个网站数据，支持 dict 平台配置（包含 crawler 配置）"""
         results = {}
         id_to_name = {}
         failed_ids = []
 
         for i, id_info in enumerate(ids_list):
-            if isinstance(id_info, tuple):
+            # 支持 dict 平台描述（来自 config），tuple 或简单 id
+            if isinstance(id_info, dict):
+                id_value = id_info.get("id") or id_info.get("source") or ""
+                name = id_info.get("name") or id_value
+            elif isinstance(id_info, tuple):
                 id_value, name = id_info
             else:
                 id_value = id_info
@@ -554,8 +625,8 @@ class DataFetcher:
                         if title is None or isinstance(title, float) or not str(title).strip():
                             continue
                         title = str(title).strip()
-                        url = item.get("url", "")
-                        mobile_url = item.get("mobileUrl", "")
+                        url = item.get("url", "") or item.get("link", "") or ""
+                        mobile_url = item.get("mobileUrl", "") or item.get("mobile_url", "")
 
                         if title in results[id_value]:
                             results[id_value][title]["ranks"].append(index)
@@ -2195,7 +2266,7 @@ def render_html_content(
                         <span class="info-label">生成时间</span>
                         <span class="info-value">"""
 
-    now = get_beijing_time()
+    now = get_local_time()
     html += now.strftime("%m-%d %H:%M")
 
     html += """</span>
@@ -2792,7 +2863,7 @@ def render_feishu_content(
         for i, id_value in enumerate(report_data["failed_ids"], 1):
             text_content += f"  • <font color='red'>{id_value}</font>\n"
 
-    now = get_beijing_time()
+    now = get_local_time()
     text_content += (
         f"\n\n<font color='grey'>更新时间：{now.strftime('%Y-%m-%d %H:%M:%S')}</font>"
     )
@@ -2812,7 +2883,7 @@ def render_dingtalk_content(
     total_titles = sum(
         len(stat["titles"]) for stat in report_data["stats"] if stat["count"] > 0
     )
-    now = get_beijing_time()
+    now = get_local_time()
 
     text_content += f"**总新闻数：** {total_titles}\n\n"
     text_content += f"**时间：** {now.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
@@ -2919,7 +2990,7 @@ def split_content_into_batches(
     total_titles = sum(
         len(stat["titles"]) for stat in report_data["stats"] if stat["count"] > 0
     )
-    now = get_beijing_time()
+    now = get_local_time()
 
     base_header = ""
     if format_type == "wework":
@@ -3383,7 +3454,7 @@ def send_to_notifications(
         time_range_end = CONFIG["PUSH_WINDOW"]["TIME_RANGE"]["END"]
 
         if not push_manager.is_in_time_range(time_range_start, time_range_end):
-            now = get_beijing_time()
+            now = get_local_time()
             print(
                 f"推送窗口控制：当前时间 {now.strftime('%H:%M')} 不在推送时间窗口 {time_range_start}-{time_range_end} 内，跳过推送"
             )
@@ -3543,7 +3614,7 @@ def send_to_feishu(
         total_titles = sum(
             len(stat["titles"]) for stat in report_data["stats"] if stat["count"] > 0
         )
-        now = get_beijing_time()
+        now = get_local_time()
 
         payload = {
             "msg_type": "text",
@@ -3924,7 +3995,7 @@ def send_to_email(
             msg["To"] = ", ".join(recipients)
 
         # 设置邮件主题
-        now = get_beijing_time()
+        now = get_local_time()
         subject = f"TrendRadar 热点分析报告 - {report_type} - {now.strftime('%m月%d日 %H:%M')}"
         msg["Subject"] = Header(subject, "utf-8")
 
@@ -4619,7 +4690,7 @@ class NewsAnalyzer:
 
     def _initialize_and_check_config(self) -> None:
         """通用初始化和配置检查"""
-        now = get_beijing_time()
+        now = get_local_time()
         print(f"当前北京时间: {now.strftime('%Y-%m-%d %H:%M:%S')}")
 
         if not CONFIG["ENABLE_CRAWLER"]:
@@ -4642,7 +4713,10 @@ class NewsAnalyzer:
         """执行数据爬取"""
         ids = []
         for platform in CONFIG["PLATFORMS"]:
-            if "name" in platform:
+            # 如果平台有 crawler 配置，传递完整 dict，否则保持向后兼容
+            if "crawler" in platform:
+                ids.append(platform)
+            elif "name" in platform:
                 ids.append((platform["id"], platform["name"]))
             else:
                 ids.append(platform["id"])

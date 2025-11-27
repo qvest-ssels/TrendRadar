@@ -1,6 +1,7 @@
 app:
   version_check_url: "https://raw.githubusercontent.com/sansan0/TrendRadar/refs/heads/master/version"
   show_version_update: true # 控制显示版本更新提示，如果 false，则不接受新版本提示
+  timezone: "Europe/Berlin" # 时区设置，支持 pytz 时区名称，如 "UTC", "America/New_York", "Europe/London", "Europe/Paris" (UTC+1), "Europe/Berlin" (UTC+1)
 
 crawler:
   request_interval: 1000 # 请求间隔(毫秒)
@@ -78,11 +79,11 @@ notification:
     wework_msg_type: "markdown" # 企业微信消息类型：markdown(群机器人) 或 text(个人微信应用)
     telegram_bot_token: "" # Telegram Bot Token
     telegram_chat_id: "" # Telegram Chat ID
-    email_from: "" # 发件人邮箱地址
-    email_password: "" # 发件人邮箱密码或授权码
-    email_to: "" # 收件人邮箱地址，多个收件人用逗号分隔
-    email_smtp_server: "" # SMTP服务器地址（可选，留空自动识别）
-    email_smtp_port: "" # SMTP端口（可选，留空自动识别）
+    email_from: "automatic@tnwx.net" # 发件人邮箱地址
+    email_password: "REMOVED_SENSITIVE_DATA" # 发件人邮箱密码或授权码
+    email_to: "sels@tnwx.net" # 收件人邮箱地址，多个收件人用逗号分隔
+    email_smtp_server: "mx0.tronicum.net" # SMTP服务器地址（可选，留空自动识别）
+    email_smtp_port: "465" # SMTP端口（可选，留空自动识别）
     ntfy_server_url: "https://ntfy.sh" # ntfy服务器地址，默认使用公共服务，可改为自托管地址
     ntfy_topic: "" # ntfy主题名称
     ntfy_token: "" # ntfy访问令牌（可选，用于私有主题）
@@ -119,3 +120,8 @@ platforms:
     name: "抖音"
   - id: "zhihu"
     name: "知乎"
+  - id: "spiegel"
+    name: "Der Spiegel — Schlagzeilen"
+    crawler:
+      type: "rss"
+      url_template: "https://www.spiegel.de/schlagzeilen/index.rss"

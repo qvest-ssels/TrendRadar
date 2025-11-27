@@ -1,7 +1,7 @@
 """
-高级数据分析工具
+Advanced Data Analytics Tools
 
-提供热度趋势分析、平台对比、关键词共现、情感分析等高级分析功能。
+Provides advanced analytics features including trend analysis, platform comparison, keyword co-occurrence, sentiment analysis, etc.
 """
 
 import re

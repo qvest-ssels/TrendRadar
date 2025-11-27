@@ -15,7 +15,10 @@ dependencies = [
 trendradar = "mcp_server.server:run_server"
 
 [dependency-groups]
-dev = []
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
 
 [build-system]
 requires = ["hatchling"]

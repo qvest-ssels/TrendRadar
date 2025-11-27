@@ -1,7 +1,7 @@
 """
-文件解析服务
+File Parsing Service
 
-提供txt格式新闻数据和YAML配置文件的解析功能。
+Provides parsing functionality for txt format news data and YAML configuration files.
 """
 
 import re
@@ -16,59 +16,59 @@ from .cache_service import get_cache
 
 
 class ParserService:
-    """文件解析服务类"""
+    """File parsing service class"""
 
     def __init__(self, project_root: str = None):
         """
-        初始化解析服务
+        Initialize parsing service
 
         Args:
-            project_root: 项目根目录，默认为当前目录的父目录
+            project_root: Project root directory, defaults to parent directory of current directory
         """
         if project_root is None:
-            # 获取当前文件所在目录的父目录的父目录
+            # Get the parent directory of the parent directory of the current file's directory
             current_file = Path(__file__)
             self.project_root = current_file.parent.parent.parent
         else:
             self.project_root = Path(project_root)
 
-        # 初始化缓存服务
+        # Initialize cache service
         self.cache = get_cache()
 
     @staticmethod
     def clean_title(title: str) -> str:
         """
-        清理标题文本
+        Clean title text
 
         Args:
-            title: 原始标题
+            title: Original title
 
         Returns:
-            清理后的标题
+            Cleaned title
         """
-        # 移除多余空白
+        # Remove excess whitespace
         title = re.sub(r'\s+', ' ', title)
-        # 移除特殊字符
+        # Remove special characters
         title = title.strip()
         return title
 
     def parse_txt_file(self, file_path: Path) -> Tuple[Dict, Dict]:
         """
-        解析单个txt文件的标题数据
+        Parse title data from a single txt file
 
         Args:
-            file_path: txt文件路径
+            file_path: txt file path
 
         Returns:
-            (titles_by_id, id_to_name) 元组
+            (titles_by_id, id_to_name) tuple
             - titles_by_id: {platform_id: {title: {ranks, url, mobileUrl}}}
             - id_to_name: {platform_id: platform_name}
 
         Raises:
-            FileParseError: 文件解析错误
+            FileParseError: File parsing error
         """
         if not file_path.exists():
-            raise FileParseError(str(file_path), "文件不存在")
+            raise FileParseError(str(file_path), "File does not exist")
 
         titles_by_id = {}
         id_to_name = {}
@@ -86,7 +86,7 @@ class ParserService:
                     if len(lines) < 2:
                         continue
 
-                    # 解析header: id | name 或 id
+                    # Parse header: id | name or id
                     header_line = lines[0].strip()
                     if " | " in header_line:
                         parts = header_line.split(" | ", 1)
@@ -99,26 +99,26 @@ class ParserService:
 
                     titles_by_id[source_id] = {}
 
-                    # 解析标题行
+                    # Parse title lines
                     for line in lines[1:]:
                         if line.strip():
                             try:
                                 title_part = line.strip()
                                 rank = None
 
-                                # 提取排名
+                                # Extract rank
                                 if ". " in title_part and title_part.split(". ")[0].isdigit():
                                     rank_str, title_part = title_part.split(". ", 1)
                                     rank = int(rank_str)
 
-                                # 提取 MOBILE URL
+                                # Extract MOBILE URL
                                 mobile_url = ""
                                 if " [MOBILE:" in title_part:
                                     title_part, mobile_part = title_part.rsplit(" [MOBILE:", 1)
                                     if mobile_part.endswith("]"):
                                         mobile_url = mobile_part[:-1]
 
-                                # 提取 URL
+                                # Extract URL
                                 url = ""
                                 if " [URL:" in title_part:
                                     title_part, url_part = title_part.rsplit(" [URL:", 1)
@@ -135,7 +135,7 @@ class ParserService:
                                 }
 
                             except Exception as e:
-                                # 忽略单行解析错误
+                                # Ignore single line parsing errors
                                 continue
 
         except Exception as e:
@@ -145,7 +145,7 @@ class ParserService:
 
     def get_date_folder_name(self, date: datetime = None) -> str:
         """
-        获取日期文件夹名称
+        Get date folder name
 
         Args:
             date: 日期对象，默认为今天

@@ -1,7 +1,7 @@
 """
-数据访问服务
+Data Access Service
 
-提供统一的数据查询接口,封装数据访问逻辑。
+Provides unified data query interface, encapsulating data access logic.
 """
 
 import re
