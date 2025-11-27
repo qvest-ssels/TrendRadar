@@ -151,11 +151,11 @@ class ParserService:
             date: 日期对象，默认为今天
 
         Returns:
-            文件夹名称，格式: YYYY年MM月DD日
+            文件夹名称，格式: YYYY-MM-DD
         """
         if date is None:
             date = datetime.now()
-        return date.strftime("%Y年%m月%d日")
+        return date.strftime("%Y-%m-%d")
 
     def read_all_titles_for_date(
         self,

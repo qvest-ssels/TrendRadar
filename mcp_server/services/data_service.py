@@ -517,9 +517,9 @@ class DataService:
         # 遍历日期文件夹
         for date_folder in output_dir.iterdir():
             if date_folder.is_dir() and not date_folder.name.startswith('.'):
-                # 解析日期（格式: YYYY年MM月DD日）
+                # 解析日期（格式: YYYY-MM-DD）
                 try:
-                    date_match = re.match(r'(\d{4})年(\d{2})月(\d{2})日', date_folder.name)
+                    date_match = re.match(r'(\d{4})-(\d{2})-(\d{2})', date_folder.name)
                     if date_match:
                         folder_date = datetime(
                             int(date_match.group(1)),
@@ -557,8 +557,8 @@ class DataService:
                     # 解析日期
                     try:
                         date_str = date_folder.name
-                        # 格式: YYYY年MM月DD日
-                        date_match = re.match(r'(\d{4})年(\d{2})月(\d{2})日', date_str)
+                        # 格式: YYYY-MM-DD
+                        date_match = re.match(r'(\d{4})-(\d{2})-(\d{2})', date_str)
                         if date_match:
                             folder_date = datetime(
                                 int(date_match.group(1)),

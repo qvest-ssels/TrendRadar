@@ -31,11 +31,15 @@ class TestTimezoneFunctions:
         """Test format_date_folder function"""
         result = format_date_folder()
         assert isinstance(result, str)
-        assert '年' in result and '月' in result and '日' in result
+        # Check for ISO date format: YYYY-MM-DD
+        assert len(result.split('-')) == 3
+        assert result.count('-') == 2
 
     @patch('main.CONFIG', {'TIMEZONE': 'UTC'})
     def test_format_time_filename(self):
         """Test format_time_filename function"""
         result = format_time_filename()
         assert isinstance(result, str)
-        assert '时' in result and '分' in result
+        # Check for time format: HH-MM
+        assert len(result.split('-')) == 2
+        assert result.count('-') == 1

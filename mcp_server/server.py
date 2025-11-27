@@ -123,7 +123,7 @@ async def get_latest_news(
         platforms: 平台ID列表，如 ['zhihu', 'weibo', 'douyin']
                    - 不指定时：使用 config.yaml 中配置的所有平台
                    - 支持的平台来自 config/config.yaml 的 platforms 配置
-                   - 每个平台都有对应的name字段（如"知乎"、"微博"），方便AI识别
+                   - 每个平台都有对应的name字段（如"Zhihu"、"Weibo"），方便AI识别
         limit: 返回条数限制，默认50，最大1000
                注意：实际返回数量可能少于请求值，取决于当前可用的新闻总数
         include_url: 是否包含URL链接，默认False（节省token）
@@ -191,7 +191,7 @@ async def get_news_by_date(
         platforms: 平台ID列表，如 ['zhihu', 'weibo', 'douyin']
                    - 不指定时：使用 config.yaml 中配置的所有平台
                    - 支持的平台来自 config/config.yaml 的 platforms 配置
-                   - 每个平台都有对应的name字段（如"知乎"、"微博"），方便AI识别
+                   - 每个平台都有对应的name字段（如"Zhihu"、"Weibo"），方便AI识别
         limit: 返回条数限制，默认50，最大1000
                注意：实际返回数量可能少于请求值，取决于指定日期的新闻总数
         include_url: 是否包含URL链接，默认False（节省token）
@@ -353,7 +353,7 @@ async def analyze_sentiment(
         platforms: 平台ID列表，如 ['zhihu', 'weibo', 'douyin']
                    - 不指定时：使用 config.yaml 中配置的所有平台
                    - 支持的平台来自 config/config.yaml 的 platforms 配置
-                   - 每个平台都有对应的name字段（如"知乎"、"微博"），方便AI识别
+                   - 每个平台都有对应的name字段（如"Zhihu"、"Weibo"），方便AI识别
         date_range: 日期范围（可选）
                     - **格式**: {"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}
                     - **获取方式**: 调用 resolve_date_range 工具解析自然语言日期
@@ -491,7 +491,7 @@ async def search_news(
         platforms: 平台ID列表，如 ['zhihu', 'weibo', 'douyin']
                    - 不指定时：使用 config.yaml 中配置的所有平台
                    - 支持的平台来自 config/config.yaml 的 platforms 配置
-                   - 每个平台都有对应的name字段（如"知乎"、"微博"），方便AI识别
+                   - 每个平台都有对应的name字段（如"Zhihu"、"Weibo"），方便AI识别
         limit: 返回条数限制，默认50，最大1000
                注意：实际返回数量取决于搜索匹配结果（特别是 fuzzy 模式下会过滤低相似度结果）
         sort_by: 排序方式，可选值：
@@ -635,7 +635,7 @@ async def trigger_crawl(
         platforms: 指定平台ID列表，如 ['zhihu', 'weibo', 'douyin']
                    - 不指定时：使用 config.yaml 中配置的所有平台
                    - 支持的平台来自 config/config.yaml 的 platforms 配置
-                   - 每个平台都有对应的name字段（如"知乎"、"微博"），方便AI识别
+                   - 每个平台都有对应的name字段（如"Zhihu"、"Weibo"），方便AI识别
                    - 注意：失败的平台会在返回结果的 failed_platforms 字段中列出
         save_to_local: 是否保存到本地 output 目录，默认 False
         include_url: 是否包含URL链接，默认False（节省token）

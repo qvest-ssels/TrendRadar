@@ -256,12 +256,12 @@ def get_local_time():
 
 def format_date_folder():
     """Format date folder"""
-    return get_local_time().strftime("%Y年%m月%d日")
+    return get_local_time().strftime("%Y-%m-%d")
 
 
 def format_time_filename():
     """Format time filename"""
-    return get_local_time().strftime("%H时%M分")
+    return get_local_time().strftime("%H-%M")
 
 
 def clean_title(title: str) -> str:
