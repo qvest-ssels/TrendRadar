@@ -1,0 +1,35 @@
+# English Frequency Words
+# International tech companies and figures
+
+特斯拉
+马斯克
+
+微软
+Microsoft
+
+英伟达
+NVIDIA
+黄仁勋
+
+AMD
+
+谷歌
+google
+gemini
+deepmind
+
+chatgpt
+openai
+sora
+
+claude
+Anthropic
+
+iphone
+ipad
+mac
+ios
+
+美国
+日本
+韩国

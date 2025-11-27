@@ -86,6 +86,8 @@ class SystemManagementTools:
             >>> result = tools.trigger_crawl(platforms=['zhihu'], save_to_local=True)
             >>> print(result['saved_files'])
         """
+        print(f"🔄 System trigger_crawl initiated - platforms: {platforms or 'all'}, save_to_local: {save_to_local}, include_url: {include_url}")
+        
         try:
             import json
             import time

@@ -287,12 +287,13 @@ class ParserService:
         except Exception as e:
             raise FileParseError(str(config_path), str(e))
 
-    def parse_frequency_words(self, words_file: str = None) -> List[Dict]:
+    def parse_frequency_words(self, words_file: str = None, language: str = "zh") -> List[Dict]:
         """
         解析关键词配置文件
 
         Args:
-            words_file: 关键词文件路径，默认为 config/frequency_words.txt
+            words_file: 关键词文件路径，默认为根据language自动选择
+            language: 语言代码 ('zh', 'en', 'de' 等)，默认为'zh'
 
         Returns:
             词组列表
@@ -301,12 +302,18 @@ class ParserService:
             FileParseError: 文件解析错误
         """
         if words_file is None:
-            words_file = self.project_root / "config" / "frequency_words.txt"
+            words_file = self.project_root / "config" / f"frequency_words_{language}.txt"
         else:
             words_file = Path(words_file)
 
+        # 如果语言特定的文件不存在，尝试使用默认文件
         if not words_file.exists():
-            return []
+            default_file = self.project_root / "config" / "frequency_words.txt"
+            if default_file.exists():
+                print(f"Warning: Language-specific frequency file {words_file} not found, using default")
+                words_file = default_file
+            else:
+                return []
 
         word_groups = []
 

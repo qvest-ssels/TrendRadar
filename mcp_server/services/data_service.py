@@ -318,8 +318,8 @@ class DataService:
                 suggestion="请确保爬虫已经运行并生成了数据"
             )
 
-        # 加载关键词配置
-        word_groups = self.parser.parse_frequency_words()
+        # 加载关键词配置 (使用中文频率词作为默认)
+        word_groups = self.parser.parse_frequency_words(language="zh")
 
         # 根据mode选择要处理的标题数据
         titles_to_process = {}
@@ -429,7 +429,7 @@ class DataService:
 
         # 解析配置文件
         config_data = self.parser.parse_yaml_config()
-        word_groups = self.parser.parse_frequency_words()
+        word_groups = self.parser.parse_frequency_words(language="zh")
 
         # 根据section返回对应配置
         if section == "all" or section == "crawler":

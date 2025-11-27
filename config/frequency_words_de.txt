@@ -1,0 +1,5 @@
+# German Frequency Words
+# German/International news keywords
+
+# Add German-specific keywords here as needed
+# Currently using English keywords for international coverage

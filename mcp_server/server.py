@@ -652,6 +652,8 @@ async def trigger_crawl(
         - 爬取并保存: trigger_crawl(platforms=['weibo'], save_to_local=True)
         - 使用默认平台: trigger_crawl()  # 爬取config.yaml中配置的所有平台
     """
+    print(f"🔄 MCP trigger_crawl called - platforms: {platforms or 'all'}, save_to_local: {save_to_local}")
+    
     tools = _get_tools()
     result = tools['system'].trigger_crawl(platforms=platforms, save_to_local=save_to_local, include_url=include_url)
     return json.dumps(result, ensure_ascii=False, indent=2)

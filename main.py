@@ -483,6 +483,18 @@ class DataFetcher:
          - dict with keys: id, name, crawler (type, url_template)
         Returns text compatible with original interface (newsnow style JSON or RSS converted JSON text)
         """
+        # Parse id_info first to get the platform identifier for logging
+        if isinstance(id_info, tuple):
+            id_value, alias = id_info
+        elif isinstance(id_info, dict):
+            id_value = id_info.get("id") or id_info.get("source") or ""
+            alias = id_info.get("name") or id_value
+        else:
+            id_value = id_info
+            alias = id_value
+
+        print(f"🔄 Starting crawl for platform: {alias} ({id_value})")
+
         if self.debug_mode:
             print(f"🔍 Starting fetch for: {id_info}")
             
@@ -639,6 +651,8 @@ class DataFetcher:
         request_interval: int = CONFIG["REQUEST_INTERVAL"],
     ) -> Tuple[Dict, Dict, List]:
         """爬取多个网站数据，支持 dict 平台配置（包含 crawler 配置）"""
+        print(f"🚀 Starting batch crawl for {len(ids_list)} platform(s)")
+        
         results = {}
         id_to_name = {}
         failed_ids = []
@@ -747,18 +761,45 @@ def save_titles_to_file(results: Dict, id_to_name: Dict, failed_ids: List) -> st
     return file_path
 
 
-def load_frequency_words(
-    frequency_file: Optional[str] = None,
-) -> Tuple[List[Dict], List[str]]:
-    """加载频率词配置"""
+def get_platform_language(platform_id: str) -> str:
+    """获取平台的语言设置"""
+    for platform in CONFIG.get("PLATFORMS", []):
+        if platform.get("id") == platform_id:
+            return platform.get("language", "zh")  # 默认中文
+    return "zh"  # 默认中文
+
+
+def load_frequency_words_for_platform(platform_id: str) -> Tuple[List[Dict], List[str]]:
+    """为特定平台加载对应的频率词"""
+    language = get_platform_language(platform_id)
+    return load_frequency_words(language=language)
+    """加载频率词配置
+    
+    Args:
+        frequency_file: 频率词文件路径，如果为None则根据language自动选择
+        language: 语言代码 ('zh', 'en', 'de' 等)，默认为'zh'
+    
+    Returns:
+        Tuple[List[Dict], List[str]]: (词组列表, 过滤词列表)
+    """
     if frequency_file is None:
+        # 根据语言选择对应的频率词文件
         frequency_file = os.environ.get(
-            "FREQUENCY_WORDS_PATH", "config/frequency_words.txt"
+            "FREQUENCY_WORDS_PATH", f"config/frequency_words_{language}.txt"
         )
+    else:
+        # 如果指定了文件路径，直接使用
+        frequency_file = os.environ.get("FREQUENCY_WORDS_PATH", frequency_file)
 
     frequency_path = Path(frequency_file)
     if not frequency_path.exists():
-        raise FileNotFoundError(f"频率词文件 {frequency_file} 不存在")
+        # 如果语言特定的文件不存在，尝试使用默认文件
+        default_path = Path("config/frequency_words.txt")
+        if default_path.exists():
+            print(f"Warning: Language-specific frequency file {frequency_file} not found, using default")
+            frequency_path = default_path
+        else:
+            raise FileNotFoundError(f"频率词文件 {frequency_file} 不存在")
 
     with open(frequency_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -1543,8 +1584,9 @@ def prepare_report_data(
     if not hide_new_section:
         filtered_new_titles = {}
         if new_titles and id_to_name:
-            word_groups, filter_words = load_frequency_words()
             for source_id, titles_data in new_titles.items():
+                # 为每个平台加载对应的频率词
+                word_groups, filter_words = load_frequency_words_for_platform(source_id)
                 filtered_titles = {}
                 for title, title_data in titles_data.items():
                     if matches_word_groups(title, word_groups, filter_words):
@@ -4534,7 +4576,8 @@ class NewsAnalyzer:
             print(f"读取到 {total_titles} 个标题（已按当前监控平台过滤）")
 
             new_titles = detect_latest_new_titles(current_platform_ids)
-            word_groups, filter_words = load_frequency_words()
+            # Load default Chinese frequency words for general analysis
+            word_groups, filter_words = load_frequency_words(language="zh")
 
             return (
                 all_results,
@@ -4754,6 +4797,8 @@ class NewsAnalyzer:
 
     def _crawl_data(self) -> Tuple[Dict, Dict, List]:
         """执行数据爬取"""
+        print("🔄 Initiating data crawl operation")
+        
         ids = []
         for platform in CONFIG["PLATFORMS"]:
             # 如果平台有 crawler 配置，传递完整 dict，否则保持向后兼容
@@ -4788,7 +4833,8 @@ class NewsAnalyzer:
 
         new_titles = detect_latest_new_titles(current_platform_ids)
         time_info = Path(save_titles_to_file(results, id_to_name, failed_ids)).stem
-        word_groups, filter_words = load_frequency_words()
+        # Load default Chinese frequency words for mode execution
+        word_groups, filter_words = load_frequency_words(language="zh")
 
         # current模式下，实时推送需要使用完整的历史数据来保证统计信息的完整性
         if self.report_mode == "current":
