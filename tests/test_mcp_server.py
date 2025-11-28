@@ -658,4 +658,58 @@ class TestMCPServerIntegration:
         assert first_item["platform_name"] == "The Moscow Times"
         assert "title" in first_item
         assert len(first_item["title"]) > 0
+
+    def test_trigger_crawl_folha(self, mcp_server_process):
+        """Test that trigger_crawl can successfully crawl Folha de S. Paulo RSS feed"""
+        from mcp_server.tools.system import SystemManagementTools
+        
+        # Create system tools instance
+        system_tools = SystemManagementTools()
+        
+        # Crawl Folha de S. Paulo RSS feed
+        result = system_tools.trigger_crawl(platforms=['folha'], debug=False)
+        
+        # Verify successful response
+        assert isinstance(result, dict)
+        assert "success" in result
+        assert result["success"] is True, f"Crawl failed: {result.get('error')}"
+        
+        # Verify crawl metadata
+        assert result["total_news"] > 0, "Expected to crawl at least some news items"
+        assert "folha" in result["platforms"]
+        
+        # Verify data structure
+        assert len(result["data"]) > 0
+        first_item = result["data"][0]
+        assert first_item["platform_id"] == "folha"
+        assert first_item["platform_name"] == "Folha de S. Paulo"
+        assert "title" in first_item
+        assert len(first_item["title"]) > 0
+
+    def test_trigger_crawl_daily_maverick(self, mcp_server_process):
+        """Test that trigger_crawl can successfully crawl Daily Maverick RSS feed"""
+        from mcp_server.tools.system import SystemManagementTools
+        
+        # Create system tools instance
+        system_tools = SystemManagementTools()
+        
+        # Crawl Daily Maverick RSS feed
+        result = system_tools.trigger_crawl(platforms=['dailymaverick'], debug=False)
+        
+        # Verify successful response
+        assert isinstance(result, dict)
+        assert "success" in result
+        assert result["success"] is True, f"Crawl failed: {result.get('error')}"
+        
+        # Verify crawl metadata
+        assert result["total_news"] > 0, "Expected to crawl at least some news items"
+        assert "dailymaverick" in result["platforms"]
+        
+        # Verify data structure
+        assert len(result["data"]) > 0
+        first_item = result["data"][0]
+        assert first_item["platform_id"] == "dailymaverick"
+        assert first_item["platform_name"] == "Daily Maverick"
+        assert "title" in first_item
+        assert len(first_item["title"]) > 0
         assert len(first_item["title"]) > 0

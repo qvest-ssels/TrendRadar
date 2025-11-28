@@ -168,3 +168,15 @@ platforms:
     crawler:
       type: "rss"
       url_template: "https://www.themoscowtimes.com/rss/news"
+  - id: "folha"
+    name: "Folha de S. Paulo"
+    language: "pt"
+    crawler:
+      type: "rss"
+      url_template: "https://feeds.folha.uol.com.br/emcimadahora/rss091.xml"
+  - id: "dailymaverick"
+    name: "Daily Maverick"
+    language: "en"
+    crawler:
+      type: "rss"
+      url_template: "https://www.dailymaverick.co.za/dmrss/"
