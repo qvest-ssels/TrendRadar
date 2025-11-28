@@ -523,3 +523,57 @@ class TestMCPServerIntegration:
         first_item = result["data"][0]
         assert first_item["platform_id"] == "spiegel"
         assert first_item["platform_name"] == "Der Spiegel — Schlagzeilen"
+
+    def test_trigger_crawl_heise_online(self, mcp_server_process):
+        """Test that trigger_crawl can successfully crawl Heise Online Atom feed"""
+        from mcp_server.tools.system import SystemManagementTools
+        
+        # Create system tools instance
+        system_tools = SystemManagementTools()
+        
+        # Crawl Heise Online Atom feed
+        result = system_tools.trigger_crawl(platforms=['heise'], debug=False)
+        
+        # Verify successful response
+        assert isinstance(result, dict)
+        assert "success" in result
+        assert result["success"] is True, f"Crawl failed: {result.get('error')}"
+        
+        # Verify crawl metadata
+        assert result["total_news"] > 0, "Expected to crawl at least some news items"
+        assert "heise" in result["platforms"]
+        
+        # Verify data structure
+        assert len(result["data"]) > 0
+        first_item = result["data"][0]
+        assert first_item["platform_id"] == "heise"
+        assert first_item["platform_name"] == "Heise Online"
+        assert "title" in first_item
+        assert len(first_item["title"]) > 0
+
+    def test_trigger_crawl_slashdot(self, mcp_server_process):
+        """Test that trigger_crawl can successfully crawl Slashdot RDF/RSS 1.0 feed"""
+        from mcp_server.tools.system import SystemManagementTools
+        
+        # Create system tools instance
+        system_tools = SystemManagementTools()
+        
+        # Crawl Slashdot RDF feed
+        result = system_tools.trigger_crawl(platforms=['slashdot'], debug=False)
+        
+        # Verify successful response
+        assert isinstance(result, dict)
+        assert "success" in result
+        assert result["success"] is True, f"Crawl failed: {result.get('error')}"
+        
+        # Verify crawl metadata
+        assert result["total_news"] > 0, "Expected to crawl at least some news items"
+        assert "slashdot" in result["platforms"]
+        
+        # Verify data structure
+        assert len(result["data"]) > 0
+        first_item = result["data"][0]
+        assert first_item["platform_id"] == "slashdot"
+        assert first_item["platform_name"] == "Slashdot"
+        assert "title" in first_item
+        assert len(first_item["title"]) > 0
