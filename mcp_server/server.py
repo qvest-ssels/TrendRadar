@@ -586,6 +586,84 @@ async def search_related_news_history(
     return json.dumps(result, ensure_ascii=False, indent=2)
 
 
+@mcp.tool
+async def deep_search(
+    query: str,
+    platforms: Optional[List[str]] = None,
+    mode: str = "both",
+    max_results: int = 50,
+    date_range: Optional[Dict[str, str]] = None,
+    include_url: bool = False
+) -> str:
+    """
+    深度搜索 - 结合本地缓存和站点实时搜索
+
+    此工具提供比 search_news 更全面的搜索能力：
+    - headlines: 仅搜索本地缓存的RSS新闻标题（快速）
+    - site_search: 直接搜索新闻站点（更全面但较慢）
+    - both: 两种模式结合，去重后返回（推荐）
+
+    当前支持站点搜索的平台：
+    - theguardian (The Guardian)
+    - spiegel (Der Spiegel)
+    - aljazeera (Al Jazeera English)
+
+    Args:
+        query: 搜索关键词
+        platforms: 平台ID列表，如 ['theguardian', 'spiegel', 'aljazeera']
+                   - 不指定时：使用所有支持搜索的平台
+                   - 仅支持配置了 search 的平台才能进行站点搜索
+        mode: 搜索模式，可选值：
+            - "headlines": 仅搜索本地缓存的新闻标题（快速，但仅限RSS更新的内容）
+            - "site_search": 仅搜索站点（更全面，但较慢且有速率限制）
+            - "both": 两种模式结合（推荐，自动去重和排序）
+        max_results: 返回条数限制，默认50，最大200
+        date_range: 日期范围（仅对 headlines 模式有效）
+                    - **格式**: {"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}
+                    - **获取方式**: 调用 resolve_date_range 工具解析自然语言日期
+        include_url: 是否包含URL链接，默认False（节省token）
+
+    Returns:
+        JSON格式的搜索结果，包含：
+        - results: 搜索结果列表
+        - total_count: 总结果数
+        - sources: 结果来源统计（headlines/site_search）
+        - platforms_searched: 搜索的平台列表
+
+    Examples:
+        用户："深度搜索关于AI的新闻"
+        → deep_search(query="AI", mode="both")
+
+        用户："在Guardian上搜索climate change"
+        → deep_search(query="climate change", platforms=["theguardian"], mode="site_search")
+
+        用户："搜索所有关于Tesla的新闻，包括网站"
+        → deep_search(query="Tesla", mode="both", include_url=True)
+    """
+    from .services.search_service import DeepSearchService
+    
+    try:
+        search_service = DeepSearchService()
+        
+        result = search_service.deep_search(
+            query=query,
+            platforms=platforms,
+            mode=mode,
+            max_results=max_results,
+            date_range=date_range,
+            include_url=include_url
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "DEEP_SEARCH_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
 # ==================== 配置与系统管理工具 ====================
 
 @mcp.tool

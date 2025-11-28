@@ -782,3 +782,156 @@ class TestMCPServerIntegration:
         assert "timesofisrael" in result["platforms"]
         assert len(result["data"]) > 0
         assert result["data"][0]["platform_id"] == "timesofisrael"
+
+
+class TestDeepSearchService:
+    """Tests for the DeepSearchService and SiteSearchService"""
+
+    def test_rate_limiter_basic(self):
+        """Test that RateLimiter correctly limits request frequency"""
+        from mcp_server.services.search_service import RateLimiter
+        import time
+
+        limiter = RateLimiter()
+        
+        # First call should not wait
+        start = time.time()
+        limiter.wait_if_needed("example.com", min_interval=0.1)
+        first_wait = time.time() - start
+        assert first_wait < 0.05, "First call should not wait"
+        
+        # Second call should wait
+        start = time.time()
+        limiter.wait_if_needed("example.com", min_interval=0.1)
+        second_wait = time.time() - start
+        assert second_wait >= 0.08, f"Second call should wait ~0.1s, waited {second_wait}s"
+
+    def test_rate_limiter_different_domains(self):
+        """Test that RateLimiter tracks domains independently"""
+        from mcp_server.services.search_service import RateLimiter
+        import time
+
+        limiter = RateLimiter()
+        
+        # First domain
+        limiter.wait_if_needed("domain1.com", min_interval=0.1)
+        
+        # Second domain should not wait (different domain)
+        start = time.time()
+        limiter.wait_if_needed("domain2.com", min_interval=0.1)
+        wait_time = time.time() - start
+        assert wait_time < 0.05, "Different domain should not wait"
+
+    def test_site_search_service_has_configs(self):
+        """Test that SiteSearchService has search configurations for supported platforms"""
+        from mcp_server.services.search_service import SiteSearchService
+
+        service = SiteSearchService()
+        
+        # Check that we have configs for the expected platforms
+        expected_platforms = ["theguardian", "spiegel", "aljazeera"]
+        for platform in expected_platforms:
+            assert platform in service.SEARCH_CONFIGS, f"Missing config for {platform}"
+            config = service.SEARCH_CONFIGS[platform]
+            assert config["enabled"] is True
+            assert "search_url" in config
+            assert "selectors" in config
+
+    def test_site_search_service_get_searchable_platforms(self):
+        """Test that SiteSearchService correctly returns searchable platforms"""
+        from mcp_server.services.search_service import SiteSearchService
+
+        service = SiteSearchService()
+        searchable = service.get_searchable_platforms()
+        
+        assert isinstance(searchable, list)
+        assert len(searchable) >= 3  # At least guardian, spiegel, aljazeera
+        assert "theguardian" in searchable
+        assert "spiegel" in searchable
+        assert "aljazeera" in searchable
+
+    def test_site_search_service_is_search_enabled(self):
+        """Test that SiteSearchService correctly identifies enabled platforms"""
+        from mcp_server.services.search_service import SiteSearchService
+
+        service = SiteSearchService()
+        
+        assert service.is_search_enabled("theguardian") is True
+        assert service.is_search_enabled("spiegel") is True
+        assert service.is_search_enabled("aljazeera") is True
+        assert service.is_search_enabled("unknown_platform") is False
+
+    def test_deep_search_service_initialization(self):
+        """Test that DeepSearchService initializes correctly"""
+        from mcp_server.services.search_service import DeepSearchService
+
+        deep_search = DeepSearchService()
+        
+        assert deep_search.data_service is not None
+        assert deep_search.site_search is not None
+
+    def test_deep_search_headlines_only_mode(self):
+        """Test deep search in headlines-only mode"""
+        from mcp_server.services.search_service import DeepSearchService
+
+        deep_search = DeepSearchService()
+        
+        # Search for a common term in headlines mode
+        result = deep_search.deep_search(
+            query="news",
+            mode="headlines",
+            max_results=10,
+            include_url=False
+        )
+        
+        assert isinstance(result, dict)
+        assert "query" in result
+        assert result["query"] == "news"
+        assert "mode" in result
+        assert result["mode"] == "headlines"
+        assert "metadata" in result
+
+    def test_deep_search_result_structure(self):
+        """Test that deep search returns correctly structured results"""
+        from mcp_server.services.search_service import DeepSearchService
+
+        deep_search = DeepSearchService()
+        
+        result = deep_search.deep_search(
+            query="test",
+            mode="headlines",
+            max_results=5
+        )
+        
+        assert isinstance(result, dict)
+        # Check required fields are present
+        required_fields = ["query", "mode", "headlines", "site_search", "combined", "metadata"]
+        for field in required_fields:
+            assert field in result, f"Missing required field: {field}"
+
+    def test_deep_search_combine_and_rank(self):
+        """Test deduplication and ranking in combine_and_rank"""
+        from mcp_server.services.search_service import DeepSearchService
+
+        deep_search = DeepSearchService()
+        
+        # Create test data with duplicates
+        headlines = [
+            {"title": "Test Article One", "platform_id": "guardian", "source": "headlines"},
+            {"title": "Test Article Two", "platform_id": "spiegel", "source": "headlines"},
+        ]
+        site_results = [
+            {"title": "Test Article One", "platform_id": "guardian", "source": "site_search"},  # Duplicate
+            {"title": "Test Article Three", "platform_id": "aljazeera", "source": "site_search"},
+        ]
+        
+        # Combine and rank
+        combined = deep_search._combine_and_rank(headlines, site_results, "test", max_results=10)
+        
+        # Should have 3 unique results (duplicate removed)
+        assert len(combined) == 3
+        
+        # All should have relevance scores
+        for item in combined:
+            assert "relevance_score" in item
+            assert isinstance(item["relevance_score"], float)

@@ -126,6 +126,11 @@ platforms:
     crawler:
       type: "rss"
       url_template: "https://www.spiegel.de/schlagzeilen/index.rss"
+    search:
+      enabled: true
+      type: "url_pattern"
+      search_url: "https://www.spiegel.de/suche/?suchbegriff={query}&seite={page}"
+      rate_limit: 2.0
   - id: "tagesspiegel"
     name: "Tagesspiegel"
     language: "de"
@@ -138,6 +143,11 @@ platforms:
     crawler:
       type: "rss"
       url_template: "https://www.theguardian.com/world/rss"
+    search:
+      enabled: true
+      type: "url_pattern"
+      search_url: "https://www.theguardian.com/search?q={query}&page={page}"
+      rate_limit: 2.0
   - id: "heise"
     name: "Heise Online"
     language: "de"
@@ -204,6 +214,11 @@ platforms:
     crawler:
       type: "rss"
       url_template: "https://www.aljazeera.com/xml/rss/all.xml"
+    search:
+      enabled: true
+      type: "url_pattern"
+      search_url: "https://www.aljazeera.com/search/{query}?page={page}"
+      rate_limit: 2.0
   - id: "timesofisrael"
     name: "The Times of Israel"
     language: "en"
