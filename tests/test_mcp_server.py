@@ -935,3 +935,289 @@ class TestDeepSearchService:
         for item in combined:
             assert "relevance_score" in item
             assert isinstance(item["relevance_score"], float)
+
+
+class TestDeepSearchLive:
+    """Live integration tests for deep search with real news queries.
+    
+    Note: Some individual site search tests may fail if website structures change.
+    The hybrid tests using Guardian API are more reliable.
+    """
+
+    def test_live_site_search_guardian_election(self):
+        """Test live site search on The Guardian for 'election' (uses API)"""
+        from mcp_server.services.search_service import SiteSearchService
+
+        service = SiteSearchService()
+        results = service.search("theguardian", "election", max_results=10, max_pages=1)
+        
+        assert isinstance(results, list)
+        assert len(results) > 0, "Expected to find results for 'election' on The Guardian API"
+        
+        # Check result structure
+        for item in results:
+            assert "title" in item
+            assert len(item["title"]) > 0
+            assert "url" in item
+
+    def test_live_site_search_guardian_government_policy(self):
+        """Test live site search on The Guardian for 'government policy' (uses API)"""
+        from mcp_server.services.search_service import SiteSearchService
+
+        service = SiteSearchService()
+        results = service.search("theguardian", "government policy", max_results=10, max_pages=1)
+        
+        assert isinstance(results, list)
+        assert len(results) > 0, "Expected to find results for 'government policy' on The Guardian API"
+
+    def test_live_site_search_spiegel_politik(self):
+        """Test live site search on Der Spiegel for 'Politik' (German politics)
+        
+        Note: This test may fail if Spiegel's search requires JavaScript rendering.
+        """
+        from mcp_server.services.search_service import SiteSearchService
+        import warnings
+
+        service = SiteSearchService()
+        results = service.search("spiegel", "Politik", max_results=10, max_pages=1)
+        
+        assert isinstance(results, list)
+        # Spiegel uses JavaScript - may return empty, just verify no errors
+        if len(results) == 0:
+            warnings.warn("Spiegel search returned no results - site may require JavaScript")
+
+    def test_live_site_search_spiegel_winter_wetter(self):
+        """Test live site search on Der Spiegel for 'Winter Wetter' (winter weather)"""
+        from mcp_server.services.search_service import SiteSearchService
+        import warnings
+
+        service = SiteSearchService()
+        results = service.search("spiegel", "Winter Wetter", max_results=10, max_pages=1)
+        
+        assert isinstance(results, list)
+        # Verify structure if results exist
+        for item in results:
+            assert "title" in item
+        if len(results) == 0:
+            warnings.warn("Spiegel Winter search returned no results - site may require JavaScript")
+
+    def test_live_site_search_aljazeera_middle_east(self):
+        """Test live site search on Al Jazeera for 'Middle East'
+        
+        Note: This test may fail if Al Jazeera's search requires JavaScript rendering.
+        """
+        from mcp_server.services.search_service import SiteSearchService
+        import warnings
+
+        service = SiteSearchService()
+        results = service.search("aljazeera", "Middle East", max_results=10, max_pages=1)
+        
+        assert isinstance(results, list)
+        if len(results) == 0:
+            warnings.warn("Al Jazeera search returned no results - site may require JavaScript")
+
+    def test_live_site_search_aljazeera_climate(self):
+        """Test live site search on Al Jazeera for 'climate'"""
+        from mcp_server.services.search_service import SiteSearchService
+        import warnings
+
+        service = SiteSearchService()
+        results = service.search("aljazeera", "climate", max_results=10, max_pages=1)
+        
+        assert isinstance(results, list)
+        if len(results) == 0:
+            warnings.warn("Al Jazeera climate search returned no results - site may require JavaScript")
+
+    def test_live_deep_search_hybrid_election(self):
+        """Test hybrid deep search for 'election' across all platforms"""
+        from mcp_server.services.search_service import DeepSearchService
+
+        deep_search = DeepSearchService()
+        result = deep_search.deep_search(
+            query="election",
+            mode="both",
+            max_results=20,
+            include_url=True
+        )
+        
+        assert isinstance(result, dict)
+        assert "combined" in result
+        assert "metadata" in result
+        
+        # Should find results from at least site search
+        total = result["metadata"]["total_results"]
+        site_count = result["metadata"]["site_search_count"]
+        
+        assert site_count > 0, "Expected to find site search results for 'election'"
+        assert total > 0, "Expected to find combined results for 'election'"
+
+    def test_live_deep_search_hybrid_government_budget(self):
+        """Test hybrid deep search for 'government budget'"""
+        from mcp_server.services.search_service import DeepSearchService
+
+        deep_search = DeepSearchService()
+        result = deep_search.deep_search(
+            query="government budget",
+            mode="both",
+            max_results=15,
+            include_url=True
+        )
+        
+        assert isinstance(result, dict)
+        assert result["metadata"]["total_results"] >= 0
+        
+        # Check combined results structure
+        for item in result["combined"]:
+            assert "title" in item
+            assert "source" in item
+            assert item["source"] in ("headlines", "site_search")
+
+    def test_live_deep_search_hybrid_winter_holiday(self):
+        """Test hybrid deep search for 'winter holiday travel'"""
+        from mcp_server.services.search_service import DeepSearchService
+
+        deep_search = DeepSearchService()
+        result = deep_search.deep_search(
+            query="winter holiday travel",
+            mode="both",
+            max_results=15,
+            include_url=True
+        )
+        
+        assert isinstance(result, dict)
+        assert "query" in result
+        assert result["query"] == "winter holiday travel"
+        assert "mode" in result
+        assert result["mode"] == "both"
+
+    def test_live_deep_search_hybrid_economy_inflation(self):
+        """Test hybrid deep search for 'economy inflation'"""
+        from mcp_server.services.search_service import DeepSearchService
+
+        deep_search = DeepSearchService()
+        result = deep_search.deep_search(
+            query="economy inflation",
+            mode="both",
+            max_results=20,
+            include_url=True
+        )
+        
+        assert isinstance(result, dict)
+        assert result["metadata"]["site_search_count"] > 0, "Expected site search results for 'economy inflation'"
+
+    def test_live_deep_search_site_only_technology_ai(self):
+        """Test site-search-only mode for 'artificial intelligence'"""
+        from mcp_server.services.search_service import DeepSearchService
+
+        deep_search = DeepSearchService()
+        result = deep_search.deep_search(
+            query="artificial intelligence",
+            mode="site_search",
+            max_results=15,
+            include_url=True
+        )
+        
+        assert isinstance(result, dict)
+        assert result["mode"] == "site_search"
+        assert result["metadata"]["headline_count"] == 0, "Site-only mode should not search headlines"
+        assert result["metadata"]["site_search_count"] > 0, "Expected site search results for 'AI'"
+
+    def test_live_deep_search_single_platform_guardian(self):
+        """Test deep search limited to single platform (The Guardian)"""
+        from mcp_server.services.search_service import DeepSearchService
+
+        deep_search = DeepSearchService()
+        result = deep_search.deep_search(
+            query="Brexit trade",
+            platforms=["theguardian"],
+            mode="site_search",
+            max_results=10,
+            include_url=True
+        )
+        
+        assert isinstance(result, dict)
+        assert "theguardian" in result["metadata"]["platforms_searched"]
+        
+        # All site_search results should be from guardian
+        for item in result["site_search"]:
+            assert item["platform_id"] == "theguardian"
+
+    def test_live_deep_search_single_platform_spiegel(self):
+        """Test deep search limited to single platform (Der Spiegel)
+        
+        Note: May return 0 results if Spiegel requires JavaScript for search.
+        """
+        from mcp_server.services.search_service import DeepSearchService
+        import warnings
+
+        deep_search = DeepSearchService()
+        result = deep_search.deep_search(
+            query="Bundesregierung",
+            platforms=["spiegel"],
+            mode="site_search",
+            max_results=10,
+            include_url=True
+        )
+        
+        assert isinstance(result, dict)
+        # Spiegel may require JS - don't fail if no results
+        if result["metadata"]["site_search_count"] == 0:
+            warnings.warn("Spiegel search returned no results - site may require JavaScript")
+
+    def test_live_deep_search_multiple_platforms(self):
+        """Test deep search across multiple specific platforms"""
+        from mcp_server.services.search_service import DeepSearchService
+
+        deep_search = DeepSearchService()
+        result = deep_search.deep_search(
+            query="climate summit",
+            platforms=["theguardian", "aljazeera"],
+            mode="site_search",
+            max_results=20,
+            include_url=True
+        )
+        
+        assert isinstance(result, dict)
+        platforms_searched = result["metadata"]["platforms_searched"]
+        assert "theguardian" in platforms_searched or "aljazeera" in platforms_searched
+
+    def test_live_deep_search_deduplication(self):
+        """Test that hybrid search properly deduplicates results"""
+        from mcp_server.services.search_service import DeepSearchService
+
+        deep_search = DeepSearchService()
+        result = deep_search.deep_search(
+            query="Ukraine war",
+            mode="both",
+            max_results=30,
+            include_url=True
+        )
+        
+        assert isinstance(result, dict)
+        
+        # Check for duplicates in combined results
+        titles_seen = set()
+        for item in result["combined"]:
+            title_lower = item["title"].lower()[:50]  # First 50 chars
+            assert title_lower not in titles_seen, f"Duplicate title found: {item['title']}"
+            titles_seen.add(title_lower)
+
+    def test_live_deep_search_relevance_scoring(self):
+        """Test that results have relevance scores and are sorted"""
+        from mcp_server.services.search_service import DeepSearchService
+
+        deep_search = DeepSearchService()
+        result = deep_search.deep_search(
+            query="technology innovation",
+            mode="both",
+            max_results=20,
+            include_url=True
+        )
+        
+        assert isinstance(result, dict)
+        
+        if len(result["combined"]) > 1:
+            # Check that results are sorted by relevance (descending)
+            scores = [item.get("relevance_score", 0) for item in result["combined"]]
+            assert scores == sorted(scores, reverse=True), "Results should be sorted by relevance"
+

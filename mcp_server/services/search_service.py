@@ -51,17 +51,12 @@ class SiteSearchService:
     SEARCH_CONFIGS = {
         "theguardian": {
             "enabled": True,
-            "type": "url_pattern",
+            "type": "api",
             "base_url": "https://www.theguardian.com",
-            "search_url": "https://www.theguardian.com/search?q={query}&page={page}",
-            "selectors": {
-                "results": "div.search-results li, section[id*='search'] a[data-link-name]",
-                "title": "h3, .fc-item__title",
-                "link": "a[href*='/20']",
-                "description": ".fc-item__standfirst, p",
-                "date": "time, .fc-item__timestamp"
-            },
-            "rate_limit": 2.0,
+            "api_url": "https://content.guardianapis.com/search",
+            "api_key": "test",  # Free tier API key
+            "selectors": {},  # Not needed for API
+            "rate_limit": 1.0,
             "max_pages": 3
         },
         "spiegel": {
@@ -70,8 +65,8 @@ class SiteSearchService:
             "base_url": "https://www.spiegel.de",
             "search_url": "https://www.spiegel.de/suche/?suchbegriff={query}&seite={page}",
             "selectors": {
-                "results": "article[data-block-el='articleTeaser'], div[data-area='article-teaser']",
-                "title": "h2, .leading-tight, span[data-target-teaser-el='headline']",
+                "results": "article[data-block-el='articleTeaser'], div[data-area='article-teaser'], section[data-area='article-teaser-list'] article",
+                "title": "h2, .leading-tight, span[data-target-teaser-el='headline'], a[title]",
                 "link": "a[href*='/20']",
                 "description": "p, .leading-loose",
                 "date": "time, span[data-target-teaser-el='date']"
@@ -85,8 +80,8 @@ class SiteSearchService:
             "base_url": "https://www.aljazeera.com",
             "search_url": "https://www.aljazeera.com/search/{query}?page={page}",
             "selectors": {
-                "results": "article, div.search-result__list article, div[class*='search-result']",
-                "title": "h3, .gc__title a, a[class*='title']",
+                "results": "article, div.search-result__list article, div[class*='search-result'], .gc",
+                "title": "h3, .gc__title a, a[class*='title'], .gc__header-wrap a",
                 "link": "a[href*='/20'], a[href*='/news/'], a[href*='/features/']",
                 "description": "p, .gc__excerpt",
                 "date": "time, span.date, div[class*='date']"
@@ -328,11 +323,71 @@ class SiteSearchService:
         query: str,
         max_results: int
     ) -> List[Dict]:
-        """Search using official API (placeholder for future implementation)"""
-        # This would be implemented for sites with official APIs
-        # e.g., Guardian API, NYT API
-        logger.warning(f"API search not implemented for {platform_id}")
-        return []
+        """Search using official API"""
+        results = []
+        
+        if platform_id == "theguardian":
+            results = self._search_guardian_api(config, query, max_results)
+        else:
+            logger.warning(f"API search not implemented for {platform_id}")
+        
+        return results
+    
+    def _search_guardian_api(
+        self,
+        config: Dict,
+        query: str,
+        max_results: int
+    ) -> List[Dict]:
+        """Search using The Guardian's free API"""
+        results = []
+        api_url = config.get("api_url", "https://content.guardianapis.com/search")
+        api_key = config.get("api_key", "test")
+        rate_limit = config.get("rate_limit", 1.0)
+        
+        try:
+            # Rate limit
+            self.rate_limiter.wait_if_needed("guardianapis.com", rate_limit)
+            
+            params = {
+                "q": query,
+                "api-key": api_key,
+                "page-size": min(max_results, 50),  # API max is 50
+                "show-fields": "headline,trailText,shortUrl",
+                "order-by": "relevance"
+            }
+            
+            response = self.session.get(api_url, params=params, timeout=15)
+            response.raise_for_status()
+            
+            data = response.json()
+            api_results = data.get("response", {}).get("results", [])
+            
+            for item in api_results:
+                fields = item.get("fields", {})
+                result = {
+                    "title": fields.get("headline") or item.get("webTitle", ""),
+                    "url": item.get("webUrl", ""),
+                    "description": fields.get("trailText", "")[:300] if fields.get("trailText") else "",
+                    "date": item.get("webPublicationDate", ""),
+                    "platform_id": "theguardian",
+                    "source": "site_search"
+                }
+                
+                if result["title"] and result["url"]:
+                    results.append(result)
+                    
+                if len(results) >= max_results:
+                    break
+                    
+            logger.info(f"[theguardian] API returned {len(results)} results for '{query}'")
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"[theguardian] API request failed: {e}")
+        except (KeyError, ValueError) as e:
+            logger.error(f"[theguardian] API response parsing failed: {e}")
+        
+        return results
     
     def _search_scrape(
         self,
