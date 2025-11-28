@@ -577,3 +577,30 @@ class TestMCPServerIntegration:
         assert first_item["platform_name"] == "Slashdot"
         assert "title" in first_item
         assert len(first_item["title"]) > 0
+
+    def test_trigger_crawl_lemonde(self, mcp_server_process):
+        """Test that trigger_crawl can successfully crawl Le Monde RSS feed"""
+        from mcp_server.tools.system import SystemManagementTools
+        
+        # Create system tools instance
+        system_tools = SystemManagementTools()
+        
+        # Crawl Le Monde RSS feed
+        result = system_tools.trigger_crawl(platforms=['lemonde'], debug=False)
+        
+        # Verify successful response
+        assert isinstance(result, dict)
+        assert "success" in result
+        assert result["success"] is True, f"Crawl failed: {result.get('error')}"
+        
+        # Verify crawl metadata
+        assert result["total_news"] > 0, "Expected to crawl at least some news items"
+        assert "lemonde" in result["platforms"]
+        
+        # Verify data structure
+        assert len(result["data"]) > 0
+        first_item = result["data"][0]
+        assert first_item["platform_id"] == "lemonde"
+        assert first_item["platform_name"] == "Le Monde"
+        assert "title" in first_item
+        assert len(first_item["title"]) > 0

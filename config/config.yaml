@@ -161,3 +161,9 @@ platforms:
     crawler:
       type: "rss"
       url_template: "http://rss.slashdot.org/Slashdot/slashdotMain"
+  - id: "lemonde"
+    name: "Le Monde"
+    language: "fr"
+    crawler:
+      type: "rss"
+      url_template: "https://www.lemonde.fr/rss/une.xml"
