@@ -57,37 +57,42 @@ class SiteSearchService:
             "api_key": "test",  # Free tier API key
             "selectors": {},  # Not needed for API
             "rate_limit": 1.0,
-            "max_pages": 3
+            "max_pages": 3,
+            "requires_js": False
         },
         "spiegel": {
             "enabled": True,
             "type": "url_pattern",
             "base_url": "https://www.spiegel.de",
-            "search_url": "https://www.spiegel.de/suche/?suchbegriff={query}&seite={page}",
+            "search_url": "https://www.spiegel.de/suche/?suchbegriff={query}",
             "selectors": {
-                "results": "article[data-block-el='articleTeaser'], div[data-area='article-teaser'], section[data-area='article-teaser-list'] article",
-                "title": "h2, .leading-tight, span[data-target-teaser-el='headline'], a[title]",
-                "link": "a[href*='/20']",
-                "description": "p, .leading-loose",
-                "date": "time, span[data-target-teaser-el='date']"
+                "results": "section[data-search-results] article, article[class*='teaser'], div[data-area='article-teaser-list'] article, [data-block-el='articleTeaser']",
+                "title": "h2 a, h3 a, a[data-sara-title], header a, a[title]",
+                "link": "a[href*='spiegel.de']",
+                "description": "section p, p[class*='leading'], span[class*='standfirst']",
+                "date": "time, span[class*='date'], footer time"
             },
             "rate_limit": 2.0,
-            "max_pages": 3
+            "max_pages": 2,
+            "requires_js": True,  # Spiegel search requires JavaScript
+            "wait_selector": "section[data-search-results], article"
         },
         "aljazeera": {
             "enabled": True,
             "type": "url_pattern",
             "base_url": "https://www.aljazeera.com",
-            "search_url": "https://www.aljazeera.com/search/{query}?page={page}",
+            "search_url": "https://www.aljazeera.com/search/{query}",
             "selectors": {
-                "results": "article, div.search-result__list article, div[class*='search-result'], .gc",
-                "title": "h3, .gc__title a, a[class*='title'], .gc__header-wrap a",
-                "link": "a[href*='/20'], a[href*='/news/'], a[href*='/features/']",
-                "description": "p, .gc__excerpt",
-                "date": "time, span.date, div[class*='date']"
+                "results": "article.gc, div.gc, article[class*='article'], .search-result-item, div[class*='result']",
+                "title": "h3 a, .gc__title a, a.u-clickable-card__link, h3.gc__title, a[class*='title']",
+                "link": "a[href*='aljazeera.com']",
+                "description": "p.gc__excerpt, div.gc__body p, p[class*='excerpt']",
+                "date": "time, span.date-simple, footer span, div[class*='date']"
             },
             "rate_limit": 2.0,
-            "max_pages": 3
+            "max_pages": 2,
+            "requires_js": True,  # Al Jazeera search requires JavaScript
+            "wait_selector": "article.gc, .search-result"
         }
     }
     
@@ -179,6 +184,10 @@ class SiteSearchService:
         max_pages: int = None
     ) -> List[Dict]:
         """Search using URL pattern and scraping"""
+        # Check if site requires JavaScript rendering
+        if config.get("requires_js", False):
+            return self._search_with_browser(platform_id, config, query, max_results)
+        
         results = []
         base_url = config.get("base_url", "")
         search_url_template = config.get("search_url", "")
@@ -237,6 +246,71 @@ class SiteSearchService:
                     break
         
         return unique_results
+    
+    def _search_with_browser(
+        self,
+        platform_id: str,
+        config: Dict,
+        query: str,
+        max_results: int
+    ) -> List[Dict]:
+        """Search using Playwright browser for JavaScript-rendered pages"""
+        import asyncio
+        from .browser_service import BrowserService, PLAYWRIGHT_AVAILABLE
+        
+        if not PLAYWRIGHT_AVAILABLE:
+            logger.warning(f"[{platform_id}] Playwright not available for JS-rendered search. "
+                         "Install with: pip install playwright && playwright install chromium")
+            return []
+        
+        base_url = config.get("base_url", "")
+        search_url_template = config.get("search_url", "")
+        selectors = config.get("selectors", {})
+        wait_selector = config.get("wait_selector")
+        rate_limit = config.get("rate_limit", 2.0)
+        
+        encoded_query = quote_plus(query)
+        search_url = search_url_template.format(query=encoded_query, page=1)
+        
+        # Respect rate limits
+        self.rate_limiter.wait_if_needed(platform_id, rate_limit)
+        
+        async def do_browser_search():
+            service = BrowserService()  # Fresh instance for each search
+            try:
+                results = await service.search_and_extract(
+                    url=search_url,
+                    selectors=selectors,
+                    wait_selector=wait_selector,
+                    max_results=max_results
+                )
+                
+                # Add platform_id to results
+                for result in results:
+                    result["platform_id"] = platform_id
+                
+                logger.info(f"[{platform_id}] Browser search found {len(results)} results for '{query}'")
+                return results
+                
+            except Exception as e:
+                logger.error(f"[{platform_id}] Browser search failed: {e}")
+                return []
+            finally:
+                await service.cleanup()
+        
+        # Run async function - always use a fresh event loop to avoid conflicts
+        # This is important for Playwright which doesn't handle loop reuse well
+        try:
+            # Create a new event loop for this operation
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(do_browser_search())
+            finally:
+                loop.close()
+        except Exception as e:
+            logger.error(f"[{platform_id}] Async execution failed: {e}")
+            return []
     
     def _parse_search_results(
         self,

@@ -940,12 +940,17 @@ class TestDeepSearchService:
 class TestDeepSearchLive:
     """Live integration tests for deep search with real news queries.
     
-    Note: Some individual site search tests may fail if website structures change.
-    The hybrid tests using Guardian API are more reliable.
+    Note: Tests marked with @pytest.mark.browser require Playwright and are slow.
+    Run without browser tests: pytest -m "not browser"
+    Run only browser tests: pytest -m browser
     """
 
+    @pytest.mark.integration
     def test_live_site_search_guardian_election(self):
-        """Test live site search on The Guardian for 'election' (uses API)"""
+        """Test live site search on The Guardian for 'election' (uses API)
+        
+        Verifies returned results are actual news articles with proper metadata.
+        """
         from mcp_server.services.search_service import SiteSearchService
 
         service = SiteSearchService()
@@ -954,14 +959,26 @@ class TestDeepSearchLive:
         assert isinstance(results, list)
         assert len(results) > 0, "Expected to find results for 'election' on The Guardian API"
         
-        # Check result structure
-        for item in results:
-            assert "title" in item
-            assert len(item["title"]) > 0
-            assert "url" in item
+        # Verify these are actual news articles
+        print(f"\n📰 Guardian 'election' results ({len(results)} articles):")
+        for item in results[:5]:
+            assert "title" in item, "Article must have a title"
+            assert len(item["title"]) > 10, f"Title too short to be a real article: {item['title']}"
+            assert "url" in item, "Article must have a URL"
+            assert "theguardian.com" in item["url"], f"URL should be from theguardian.com: {item['url']}"
+            
+            # Title should contain actual words
+            assert any(c.isalpha() for c in item["title"]), "Title must contain letters"
+            
+            print(f"  ✓ {item['title'][:80]}")
+            print(f"    → {item['url'][:100]}")
 
+    @pytest.mark.integration
     def test_live_site_search_guardian_government_policy(self):
-        """Test live site search on The Guardian for 'government policy' (uses API)"""
+        """Test live site search on The Guardian for 'government policy' (uses API)
+        
+        Verifies returned results are actual news articles.
+        """
         from mcp_server.services.search_service import SiteSearchService
 
         service = SiteSearchService()
@@ -969,74 +986,157 @@ class TestDeepSearchLive:
         
         assert isinstance(results, list)
         assert len(results) > 0, "Expected to find results for 'government policy' on The Guardian API"
-
+        
+        # Verify these are actual news articles
+        print(f"\n📰 Guardian 'government policy' results ({len(results)} articles):")
+        for item in results[:5]:
+            assert "title" in item
+            assert len(item["title"]) > 10
+            print(f"  ✓ {item['title'][:80]}")
+    @pytest.mark.browser
+    @pytest.mark.slow
+    @pytest.mark.timeout(30)
     def test_live_site_search_spiegel_politik(self):
         """Test live site search on Der Spiegel for 'Politik' (German politics)
         
-        Note: This test may fail if Spiegel's search requires JavaScript rendering.
+        Uses Playwright for JavaScript rendering.
+        Verifies returned results are actual news articles.
+        Optimized for ~20-30 second runtime.
         """
         from mcp_server.services.search_service import SiteSearchService
+        from mcp_server.services.browser_service import PLAYWRIGHT_AVAILABLE
         import warnings
 
         service = SiteSearchService()
-        results = service.search("spiegel", "Politik", max_results=10, max_pages=1)
+        results = service.search("spiegel", "Politik", max_results=5, max_pages=1)
         
         assert isinstance(results, list)
-        # Spiegel uses JavaScript - may return empty, just verify no errors
-        if len(results) == 0:
-            warnings.warn("Spiegel search returned no results - site may require JavaScript")
-
+        
+        if PLAYWRIGHT_AVAILABLE:
+            assert len(results) > 0, "Expected to find results for 'Politik' on Der Spiegel with Playwright"
+            
+            # Verify these are actual news articles
+            print(f"\n📰 Spiegel 'Politik' results ({len(results)} articles):")
+            for item in results[:3]:
+                assert "title" in item, "Article must have a title"
+                assert len(item["title"]) > 10, f"Title too short to be a real article: {item['title']}"
+                
+                # Title should contain actual words, not just symbols
+                assert any(c.isalpha() for c in item["title"]), "Title must contain letters"
+                
+                print(f"  ✓ {item['title'][:80]}")
+                if "url" in item and item["url"]:
+                    print(f"    → {item['url'][:100]}")
+        else:
+            if len(results) == 0:
+                warnings.warn("Playwright not installed - Spiegel search requires JavaScript")
+    @pytest.mark.browser
+    @pytest.mark.slow
+    @pytest.mark.timeout(30)
     def test_live_site_search_spiegel_winter_wetter(self):
-        """Test live site search on Der Spiegel for 'Winter Wetter' (winter weather)"""
+        """Test live site search on Der Spiegel for 'Winter' (winter weather)
+        
+        Uses Playwright for JavaScript rendering.
+        Optimized for ~20-30 second runtime.
+        """
         from mcp_server.services.search_service import SiteSearchService
+        from mcp_server.services.browser_service import PLAYWRIGHT_AVAILABLE
         import warnings
 
         service = SiteSearchService()
-        results = service.search("spiegel", "Winter Wetter", max_results=10, max_pages=1)
+        results = service.search("spiegel", "Winter", max_results=5, max_pages=1)
         
         assert isinstance(results, list)
-        # Verify structure if results exist
-        for item in results:
-            assert "title" in item
-        if len(results) == 0:
-            warnings.warn("Spiegel Winter search returned no results - site may require JavaScript")
+        
+        if PLAYWRIGHT_AVAILABLE:
+            assert len(results) > 0, "Expected to find results for 'Winter' on Der Spiegel with Playwright"
+            
+            print(f"\n📰 Spiegel 'Winter' results ({len(results)} articles):")
+            for item in results[:3]:
+                assert "title" in item, "Article must have a title"
+                assert len(item["title"]) > 10, f"Title too short: {item['title']}"
+                print(f"  ✓ {item['title'][:80]}")
+        else:
+            if len(results) == 0:
+                warnings.warn("Playwright not installed - Spiegel search requires JavaScript")
 
+    @pytest.mark.browser
+    @pytest.mark.slow
+    @pytest.mark.timeout(30)
     def test_live_site_search_aljazeera_middle_east(self):
         """Test live site search on Al Jazeera for 'Middle East'
         
-        Note: This test may fail if Al Jazeera's search requires JavaScript rendering.
+        Uses Playwright for JavaScript rendering.
+        Optimized for ~20-30 second runtime.
         """
         from mcp_server.services.search_service import SiteSearchService
+        from mcp_server.services.browser_service import PLAYWRIGHT_AVAILABLE
         import warnings
 
         service = SiteSearchService()
-        results = service.search("aljazeera", "Middle East", max_results=10, max_pages=1)
+        results = service.search("aljazeera", "Middle East", max_results=5, max_pages=1)
         
         assert isinstance(results, list)
-        if len(results) == 0:
-            warnings.warn("Al Jazeera search returned no results - site may require JavaScript")
+        
+        if PLAYWRIGHT_AVAILABLE:
+            assert len(results) > 0, "Expected to find results for 'Middle East' on Al Jazeera with Playwright"
+            
+            print(f"\n📰 Al Jazeera 'Middle East' results ({len(results)} articles):")
+            for item in results[:3]:
+                assert "title" in item, "Article must have a title"
+                assert len(item["title"]) > 5, f"Title too short: {item['title']}"
+                print(f"  ✓ {item['title'][:80]}")
+                if "url" in item and item["url"]:
+                    print(f"    → {item['url'][:100]}")
+        else:
+            if len(results) == 0:
+                warnings.warn("Playwright not installed - Al Jazeera search requires JavaScript")
 
+    @pytest.mark.browser
+    @pytest.mark.slow
+    @pytest.mark.timeout(30)
     def test_live_site_search_aljazeera_climate(self):
-        """Test live site search on Al Jazeera for 'climate'"""
+        """Test live site search on Al Jazeera for 'climate'
+        
+        Uses Playwright for JavaScript rendering.
+        Optimized for ~20-30 second runtime.
+        """
         from mcp_server.services.search_service import SiteSearchService
+        from mcp_server.services.browser_service import PLAYWRIGHT_AVAILABLE
         import warnings
 
         service = SiteSearchService()
-        results = service.search("aljazeera", "climate", max_results=10, max_pages=1)
+        results = service.search("aljazeera", "climate", max_results=5, max_pages=1)
         
         assert isinstance(results, list)
-        if len(results) == 0:
-            warnings.warn("Al Jazeera climate search returned no results - site may require JavaScript")
+        
+        if PLAYWRIGHT_AVAILABLE:
+            assert len(results) > 0, "Expected to find results for 'climate' on Al Jazeera with Playwright"
+            
+            print(f"\n📰 Al Jazeera 'climate' results ({len(results)} articles):")
+            for item in results[:3]:
+                assert "title" in item, "Article must have a title"
+                assert len(item["title"]) > 5, f"Title too short: {item['title']}"
+                print(f"  ✓ {item['title'][:80]}")
+        else:
+            if len(results) == 0:
+                warnings.warn("Playwright not installed - Al Jazeera search requires JavaScript")
 
+    @pytest.mark.integration
     def test_live_deep_search_hybrid_election(self):
-        """Test hybrid deep search for 'election' across all platforms"""
+        """Test hybrid deep search for 'election' - Guardian only for speed
+        
+        Verifies returned results are actual news articles.
+        Limited to Guardian API to keep test under 20 seconds.
+        """
         from mcp_server.services.search_service import DeepSearchService
 
         deep_search = DeepSearchService()
         result = deep_search.deep_search(
             query="election",
+            platforms=["theguardian"],  # Guardian only for speed
             mode="both",
-            max_results=20,
+            max_results=10,
             include_url=True
         )
         
@@ -1050,16 +1150,28 @@ class TestDeepSearchLive:
         
         assert site_count > 0, "Expected to find site search results for 'election'"
         assert total > 0, "Expected to find combined results for 'election'"
+        
+        # Display found articles
+        print(f"\n📰 Deep Search 'election' - {total} total results:")
+        print(f"   Headlines: {result['metadata']['headline_count']}, Site Search: {site_count}")
+        for item in result["combined"][:5]:
+            source_icon = "🗞️" if item["source"] == "headlines" else "🔍"
+            print(f"  {source_icon} [{item.get('platform_id', 'unknown')}] {item['title'][:70]}")
 
     def test_live_deep_search_hybrid_government_budget(self):
-        """Test hybrid deep search for 'government budget'"""
+        """Test hybrid deep search for 'government budget' - Guardian only
+        
+        Verifies article structure and displays found news.
+        Limited to Guardian API to keep test under 20 seconds.
+        """
         from mcp_server.services.search_service import DeepSearchService
 
         deep_search = DeepSearchService()
         result = deep_search.deep_search(
             query="government budget",
+            platforms=["theguardian"],
             mode="both",
-            max_results=15,
+            max_results=10,
             include_url=True
         )
         
@@ -1067,20 +1179,28 @@ class TestDeepSearchLive:
         assert result["metadata"]["total_results"] >= 0
         
         # Check combined results structure
-        for item in result["combined"]:
+        print(f"\n📰 Deep Search 'government budget' - {result['metadata']['total_results']} results:")
+        for item in result["combined"][:5]:
             assert "title" in item
             assert "source" in item
             assert item["source"] in ("headlines", "site_search")
+            source_icon = "🗞️" if item["source"] == "headlines" else "🔍"
+            print(f"  {source_icon} {item['title'][:75]}")
 
     def test_live_deep_search_hybrid_winter_holiday(self):
-        """Test hybrid deep search for 'winter holiday travel'"""
+        """Test hybrid deep search for 'winter holiday travel'
+        
+        Verifies search metadata and displays results.
+        Limited to Guardian API to keep test under 20 seconds.
+        """
         from mcp_server.services.search_service import DeepSearchService
 
         deep_search = DeepSearchService()
         result = deep_search.deep_search(
             query="winter holiday travel",
+            platforms=["theguardian"],
             mode="both",
-            max_results=15,
+            max_results=10,
             include_url=True
         )
         
@@ -1089,31 +1209,49 @@ class TestDeepSearchLive:
         assert result["query"] == "winter holiday travel"
         assert "mode" in result
         assert result["mode"] == "both"
+        
+        print(f"\n📰 Deep Search 'winter holiday travel' - {result['metadata']['total_results']} results:")
+        for item in result["combined"][:5]:
+            print(f"  ✓ {item['title'][:75]}")
 
     def test_live_deep_search_hybrid_economy_inflation(self):
-        """Test hybrid deep search for 'economy inflation'"""
+        """Test hybrid deep search for 'economy inflation'
+        
+        Verifies site search returns relevant economic news.
+        Limited to Guardian API to keep test under 20 seconds.
+        """
         from mcp_server.services.search_service import DeepSearchService
 
         deep_search = DeepSearchService()
         result = deep_search.deep_search(
             query="economy inflation",
+            platforms=["theguardian"],
             mode="both",
-            max_results=20,
+            max_results=10,
             include_url=True
         )
         
         assert isinstance(result, dict)
         assert result["metadata"]["site_search_count"] > 0, "Expected site search results for 'economy inflation'"
+        
+        print(f"\n📰 Deep Search 'economy inflation' - {result['metadata']['total_results']} results:")
+        for item in result["combined"][:5]:
+            print(f"  ✓ {item['title'][:75]}")
 
     def test_live_deep_search_site_only_technology_ai(self):
-        """Test site-search-only mode for 'artificial intelligence'"""
+        """Test site-search-only mode for 'artificial intelligence'
+        
+        Verifies site-only mode doesn't search headlines.
+        Limited to Guardian API to keep test under 20 seconds.
+        """
         from mcp_server.services.search_service import DeepSearchService
 
         deep_search = DeepSearchService()
         result = deep_search.deep_search(
             query="artificial intelligence",
+            platforms=["theguardian"],
             mode="site_search",
-            max_results=15,
+            max_results=10,
             include_url=True
         )
         
@@ -1121,9 +1259,16 @@ class TestDeepSearchLive:
         assert result["mode"] == "site_search"
         assert result["metadata"]["headline_count"] == 0, "Site-only mode should not search headlines"
         assert result["metadata"]["site_search_count"] > 0, "Expected site search results for 'AI'"
+        
+        print(f"\n📰 Site-only Search 'artificial intelligence' - {result['metadata']['site_search_count']} results:")
+        for item in result["site_search"][:5]:
+            print(f"  🔍 [{item.get('platform_id', '?')}] {item['title'][:65]}")
 
     def test_live_deep_search_single_platform_guardian(self):
-        """Test deep search limited to single platform (The Guardian)"""
+        """Test deep search limited to single platform (The Guardian)
+        
+        Verifies platform filtering works correctly.
+        """
         from mcp_server.services.search_service import DeepSearchService
 
         deep_search = DeepSearchService()
@@ -1142,12 +1287,14 @@ class TestDeepSearchLive:
         for item in result["site_search"]:
             assert item["platform_id"] == "theguardian"
 
+    @pytest.mark.browser
     def test_live_deep_search_single_platform_spiegel(self):
         """Test deep search limited to single platform (Der Spiegel)
         
-        Note: May return 0 results if Spiegel requires JavaScript for search.
+        Uses Playwright for JavaScript rendering.
         """
         from mcp_server.services.search_service import DeepSearchService
+        from mcp_server.services.browser_service import PLAYWRIGHT_AVAILABLE
         import warnings
 
         deep_search = DeepSearchService()
@@ -1160,12 +1307,19 @@ class TestDeepSearchLive:
         )
         
         assert isinstance(result, dict)
-        # Spiegel may require JS - don't fail if no results
-        if result["metadata"]["site_search_count"] == 0:
-            warnings.warn("Spiegel search returned no results - site may require JavaScript")
+        
+        if PLAYWRIGHT_AVAILABLE:
+            assert result["metadata"]["site_search_count"] > 0, "Expected results for 'Bundesregierung' on Spiegel with Playwright"
+        else:
+            if result["metadata"]["site_search_count"] == 0:
+                warnings.warn("Playwright not installed - Spiegel search requires JavaScript")
 
+    @pytest.mark.browser
     def test_live_deep_search_multiple_platforms(self):
-        """Test deep search across multiple specific platforms"""
+        """Test deep search across multiple specific platforms
+        
+        Uses Playwright for Al Jazeera.
+        """
         from mcp_server.services.search_service import DeepSearchService
 
         deep_search = DeepSearchService()
