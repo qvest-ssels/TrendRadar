@@ -712,4 +712,73 @@ class TestMCPServerIntegration:
         assert first_item["platform_name"] == "Daily Maverick"
         assert "title" in first_item
         assert len(first_item["title"]) > 0
-        assert len(first_item["title"]) > 0
+
+    def test_trigger_crawl_straits_times(self, mcp_server_process):
+        """Test that trigger_crawl can successfully crawl The Straits Times RSS feed"""
+        from mcp_server.tools.system import SystemManagementTools
+        
+        system_tools = SystemManagementTools()
+        result = system_tools.trigger_crawl(platforms=['straitstimes'], debug=False)
+        
+        assert isinstance(result, dict)
+        assert result["success"] is True, f"Crawl failed: {result.get('error')}"
+        assert result["total_news"] > 0
+        assert "straitstimes" in result["platforms"]
+        assert len(result["data"]) > 0
+        assert result["data"][0]["platform_id"] == "straitstimes"
+
+    def test_trigger_crawl_guardian_australia(self, mcp_server_process):
+        """Test that trigger_crawl can successfully crawl The Guardian Australia RSS feed"""
+        from mcp_server.tools.system import SystemManagementTools
+        
+        system_tools = SystemManagementTools()
+        result = system_tools.trigger_crawl(platforms=['guardianau'], debug=False)
+        
+        assert isinstance(result, dict)
+        assert result["success"] is True, f"Crawl failed: {result.get('error')}"
+        assert result["total_news"] > 0
+        assert "guardianau" in result["platforms"]
+        assert len(result["data"]) > 0
+        assert result["data"][0]["platform_id"] == "guardianau"
+
+    def test_trigger_crawl_asharq_al_awsat(self, mcp_server_process):
+        """Test that trigger_crawl can successfully crawl Asharq Al-Awsat RSS feed"""
+        from mcp_server.tools.system import SystemManagementTools
+        
+        system_tools = SystemManagementTools()
+        result = system_tools.trigger_crawl(platforms=['aawsat'], debug=False)
+        
+        assert isinstance(result, dict)
+        assert result["success"] is True, f"Crawl failed: {result.get('error')}"
+        assert result["total_news"] > 0
+        assert "aawsat" in result["platforms"]
+        assert len(result["data"]) > 0
+        assert result["data"][0]["platform_id"] == "aawsat"
+
+    def test_trigger_crawl_al_jazeera(self, mcp_server_process):
+        """Test that trigger_crawl can successfully crawl Al Jazeera English RSS feed"""
+        from mcp_server.tools.system import SystemManagementTools
+        
+        system_tools = SystemManagementTools()
+        result = system_tools.trigger_crawl(platforms=['aljazeera'], debug=False)
+        
+        assert isinstance(result, dict)
+        assert result["success"] is True, f"Crawl failed: {result.get('error')}"
+        assert result["total_news"] > 0
+        assert "aljazeera" in result["platforms"]
+        assert len(result["data"]) > 0
+        assert result["data"][0]["platform_id"] == "aljazeera"
+
+    def test_trigger_crawl_times_of_israel(self, mcp_server_process):
+        """Test that trigger_crawl can successfully crawl The Times of Israel RSS feed"""
+        from mcp_server.tools.system import SystemManagementTools
+        
+        system_tools = SystemManagementTools()
+        result = system_tools.trigger_crawl(platforms=['timesofisrael'], debug=False)
+        
+        assert isinstance(result, dict)
+        assert result["success"] is True, f"Crawl failed: {result.get('error')}"
+        assert result["total_news"] > 0
+        assert "timesofisrael" in result["platforms"]
+        assert len(result["data"]) > 0
+        assert result["data"][0]["platform_id"] == "timesofisrael"

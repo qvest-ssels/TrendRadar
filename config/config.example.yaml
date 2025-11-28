@@ -180,3 +180,33 @@ platforms:
     crawler:
       type: "rss"
       url_template: "https://www.dailymaverick.co.za/dmrss/"
+  - id: "straitstimes"
+    name: "The Straits Times"
+    language: "en"
+    crawler:
+      type: "rss"
+      url_template: "https://www.straitstimes.com/news/singapore/rss.xml"
+  - id: "guardianau"
+    name: "The Guardian Australia"
+    language: "en"
+    crawler:
+      type: "rss"
+      url_template: "https://www.theguardian.com/australia-news/rss"
+  - id: "aawsat"
+    name: "Asharq Al-Awsat"
+    language: "en"
+    crawler:
+      type: "rss"
+      url_template: "https://english.aawsat.com/feed"
+  - id: "aljazeera"
+    name: "Al Jazeera English"
+    language: "en"
+    crawler:
+      type: "rss"
+      url_template: "https://www.aljazeera.com/xml/rss/all.xml"
+  - id: "timesofisrael"
+    name: "The Times of Israel"
+    language: "en"
+    crawler:
+      type: "rss"
+      url_template: "https://www.timesofisrael.com/feed/"
