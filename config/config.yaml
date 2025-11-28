@@ -148,6 +148,12 @@ platforms:
     crawler:
       type: "googlenews"
       url_template: "https://www.tagesspiegel.de/news.xml"
+    search:
+      enabled: false  # Search uses JS framework that doesn't work with scraping
+      type: "url_pattern"
+      search_url: "https://www.tagesspiegel.de/suche/?q={query}"
+      requires_js: true
+      rate_limit: 2.0
   - id: "theguardian"
     name: "The Guardian"
     language: "en"
@@ -165,6 +171,12 @@ platforms:
     crawler:
       type: "rss"
       url_template: "https://www.heise.de/rss/heise-atom.xml"
+    search:
+      enabled: true
+      type: "url_pattern"
+      search_url: "https://www.heise.de/suche/?q={query}&sort=date"
+      requires_js: true
+      rate_limit: 2.0
   - id: "slashdot"
     name: "Slashdot"
     language: "en"
@@ -177,18 +189,34 @@ platforms:
     crawler:
       type: "rss"
       url_template: "https://www.lemonde.fr/rss/une.xml"
+    search:
+      enabled: true
+      type: "url_pattern"
+      search_url: "https://www.lemonde.fr/recherche/?search_keywords={query}&start_at=&end_at="
+      requires_js: true
+      rate_limit: 2.0
   - id: "timesofindia"
     name: "The Times of India"
     language: "en"
     crawler:
       type: "rss"
       url_template: "https://timesofindia.indiatimes.com/rssfeedstopstories.cms"
+    search:
+      enabled: true
+      type: "url_pattern"
+      search_url: "https://timesofindia.indiatimes.com/topic/{query}"
+      rate_limit: 2.0
   - id: "moscowtimes"
     name: "The Moscow Times"
     language: "en"
     crawler:
       type: "rss"
       url_template: "https://www.themoscowtimes.com/rss/news"
+    search:
+      enabled: false  # Search page doesn't show article results
+      type: "url_pattern"
+      search_url: "https://www.themoscowtimes.com/search?query={query}"
+      rate_limit: 2.0
   - id: "folha"
     name: "Folha de S. Paulo"
     language: "pt"
@@ -207,6 +235,12 @@ platforms:
     crawler:
       type: "rss"
       url_template: "https://www.straitstimes.com/news/singapore/rss.xml"
+    search:
+      enabled: true
+      type: "url_pattern"
+      search_url: "https://www.straitstimes.com/search?searchkey={query}"
+      requires_js: true
+      rate_limit: 2.0
   - id: "guardianau"
     name: "The Guardian Australia"
     language: "en"
@@ -236,3 +270,8 @@ platforms:
     crawler:
       type: "rss"
       url_template: "https://www.timesofisrael.com/feed/"
+    search:
+      enabled: false  # Cloudflare blocks search scraping
+      type: "url_pattern"
+      search_url: "https://www.timesofisrael.com/?s={query}"
+      rate_limit: 2.0

@@ -118,6 +118,60 @@ class SiteSearchService:
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9,de;q=0.8",
         })
+        
+        # Load additional platform configs from YAML if not provided
+        if not config:
+            self._load_yaml_configs()
+    
+    def _load_yaml_configs(self):
+        """Load search configurations from config.yaml platforms"""
+        import yaml
+        from pathlib import Path
+        
+        config_path = Path(__file__).parent.parent.parent / "config" / "config.yaml"
+        if not config_path.exists():
+            logger.debug(f"Config file not found: {config_path}")
+            return
+        
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                yaml_config = yaml.safe_load(f)
+            
+            platforms = yaml_config.get("platforms", [])
+            for platform in platforms:
+                platform_id = platform.get("id")
+                search_config = platform.get("search", {})
+                
+                if not platform_id or not search_config.get("enabled"):
+                    continue
+                
+                # Skip if already in SEARCH_CONFIGS (prefer hardcoded with selectors)
+                if platform_id in self.SEARCH_CONFIGS:
+                    continue
+                
+                # Build config from YAML
+                self.config[platform_id] = {
+                    "enabled": True,
+                    "type": search_config.get("type", "url_pattern"),
+                    "base_url": search_config.get("base_url", ""),
+                    "search_url": search_config.get("search_url", ""),
+                    "api_url": search_config.get("api_url", ""),
+                    "api_key": search_config.get("api_key", ""),
+                    "selectors": search_config.get("selectors", {
+                        "results": "article, .search-result, .result-item, [class*='article'], [class*='result']",
+                        "title": "h1 a, h2 a, h3 a, a[class*='title'], .title a",
+                        "link": "a[href]",
+                        "description": "p, .excerpt, .summary, [class*='desc']",
+                        "date": "time, .date, [class*='date']"
+                    }),
+                    "rate_limit": search_config.get("rate_limit", 2.0),
+                    "max_pages": search_config.get("max_pages", 2),
+                    "requires_js": search_config.get("requires_js", False),
+                    "wait_selector": search_config.get("wait_selector", "article, .result")
+                }
+                logger.debug(f"Loaded search config for {platform_id} from YAML")
+        except Exception as e:
+            logger.warning(f"Failed to load YAML config: {e}")
     
     def get_search_config(self, platform_id: str) -> Optional[Dict]:
         """Get search configuration for a platform"""
@@ -133,11 +187,16 @@ class SiteSearchService:
     
     def get_searchable_platforms(self) -> List[str]:
         """Get list of platforms that support site search"""
-        platforms = []
+        platforms = set()
+        # Add hardcoded configs
         for platform_id in self.SEARCH_CONFIGS:
             if self.is_search_enabled(platform_id):
-                platforms.append(platform_id)
-        return platforms
+                platforms.add(platform_id)
+        # Add YAML-loaded configs
+        for platform_id in self.config:
+            if self.is_search_enabled(platform_id):
+                platforms.add(platform_id)
+        return sorted(list(platforms))
     
     def search(
         self,

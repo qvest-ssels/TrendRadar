@@ -22,11 +22,21 @@ logger = logging.getLogger(__name__)
 
 # Check if Playwright is available
 PLAYWRIGHT_AVAILABLE = False
+STEALTH_AVAILABLE = False
 try:
     from playwright.async_api import async_playwright, Browser, Page, Playwright
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     logger.info("Playwright not installed. JavaScript rendering disabled. Install with: pip install playwright && playwright install chromium")
+
+try:
+    from playwright_stealth import Stealth
+    STEALTH_AVAILABLE = True
+    _stealth_instance = Stealth()
+except ImportError:
+    STEALTH_AVAILABLE = False
+    _stealth_instance = None
+    logger.info("playwright-stealth not installed. Stealth mode disabled. Install with: pip install playwright-stealth")
 
 
 class BrowserService:
@@ -106,7 +116,8 @@ class BrowserService:
         wait_for: str = None,
         wait_selector: str = None,
         timeout: int = None,
-        extra_headers: Dict[str, str] = None
+        extra_headers: Dict[str, str] = None,
+        use_stealth: bool = True
     ) -> Optional[str]:
         """
         Fetch page content with JavaScript rendering.
@@ -117,6 +128,7 @@ class BrowserService:
             wait_selector: CSS selector to wait for before returning
             timeout: Timeout in milliseconds
             extra_headers: Additional HTTP headers
+            use_stealth: Whether to apply stealth mode to avoid bot detection
             
         Returns:
             HTML content of the rendered page, or None on failure
@@ -128,19 +140,42 @@ class BrowserService:
         wait_for = wait_for or self.DEFAULT_WAIT_FOR
         
         page = None
+        context = None
         try:
-            # Create new context for isolation
+            # Randomize viewport slightly to appear more human-like
+            import random
+            viewport_width = 1920 + random.randint(-100, 100)
+            viewport_height = 1080 + random.randint(-50, 50)
+            
+            # Create new context for isolation with realistic settings
             context = await self._browser.new_context(
                 user_agent=self.USER_AGENT,
-                viewport={'width': 1920, 'height': 1080},
+                viewport={'width': viewport_width, 'height': viewport_height},
+                locale='en-US',
+                timezone_id='Europe/Berlin',
                 extra_http_headers=extra_headers or {}
             )
             
             page = await context.new_page()
             
+            # Apply stealth mode if available and requested
+            if use_stealth and STEALTH_AVAILABLE and _stealth_instance:
+                await _stealth_instance.apply_stealth_async(page)
+                logger.debug("Applied stealth mode to page")
+            
             # Navigate to URL
             logger.debug(f"Fetching {url} with Playwright...")
             await page.goto(url, wait_until=wait_for, timeout=timeout)
+            
+            # Wait extra time for Cloudflare challenges to complete
+            await asyncio.sleep(2.0)
+            
+            # Check for Cloudflare challenge page
+            content = await page.content()
+            if 'cf-browser-verification' in content or 'Just a moment' in content:
+                logger.info("Cloudflare challenge detected, waiting longer...")
+                await asyncio.sleep(5.0)
+                content = await page.content()
             
             # Wait for specific selector if provided
             if wait_selector:
@@ -164,7 +199,7 @@ class BrowserService:
         finally:
             if page:
                 await page.close()
-            if self._context:
+            if context:
                 await context.close()
     
     async def search_and_extract(
