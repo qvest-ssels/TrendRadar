@@ -156,3 +156,15 @@ platforms:
     crawler:
       type: "rss"
       url_template: "https://www.lemonde.fr/rss/une.xml"
+  - id: "timesofindia"
+    name: "The Times of India"
+    language: "en"
+    crawler:
+      type: "rss"
+      url_template: "https://timesofindia.indiatimes.com/rssfeedstopstories.cms"
+  - id: "moscowtimes"
+    name: "The Moscow Times"
+    language: "en"
+    crawler:
+      type: "rss"
+      url_template: "https://www.themoscowtimes.com/rss/news"
