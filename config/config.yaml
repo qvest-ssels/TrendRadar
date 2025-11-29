@@ -226,9 +226,19 @@ platforms:
   - id: "folha"
     name: "Folha de S. Paulo"
     language: "pt"
+    cdn: "cloudflare"
     crawler:
       type: "rss"
       url_template: "https://feeds.folha.uol.com.br/emcimadahora/rss091.xml"
+    search:
+      enabled: true
+      type: "url_pattern"
+      search_url: "https://search.folha.uol.com.br/?q={query}&site=todos"
+      use_cloudscraper: true  # Use cloudscraper to bypass Cloudflare
+      result_selector: ".c-headline"
+      title_selector: ".c-headline__title"
+      link_selector: "a"
+      rate_limit: 2.0
   - id: "dailymaverick"
     name: "Daily Maverick"
     language: "en"
@@ -289,4 +299,34 @@ platforms:
       enabled: false  # Cloudflare blocks search scraping
       type: "url_pattern"
       search_url: "https://www.timesofisrael.com/?s={query}"
+      rate_limit: 2.0
+  - id: "japantimes"
+    name: "The Japan Times"
+    language: "en"
+    crawler:
+      type: "rss"
+      url_template: "https://www.japantimes.co.jp/feed/"
+    search:
+      enabled: false
+      type: "url_pattern"
+      search_url: "https://www.japantimes.co.jp/?s={query}"
+      rate_limit: 2.0
+  - id: "koreaherald"
+    name: "The Korea Herald"
+    language: "en"
+    cdn: "cloudflare"
+    crawler:
+      type: "rss"
+      url_template: "https://www.koreaherald.com/rss/kh_National"
+      sub_feeds:
+        - name: "Business"
+          url: "https://www.koreaherald.com/rss/kh_Business"
+        - name: "World"
+          url: "https://www.koreaherald.com/rss/kh_World"
+        - name: "Opinion"
+          url: "https://www.koreaherald.com/rss/kh_Opinion"
+    search:
+      enabled: false
+      type: "url_pattern"
+      search_url: "https://www.koreaherald.com/search/index.php?q={query}"
       rate_limit: 2.0

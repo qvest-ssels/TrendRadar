@@ -33,11 +33,10 @@
 - ❌ Times of Israel - Cloudflare blocks even with stealth mode (cdn: cloudflare)
 - ❌ Daily Maverick - Cloudflare protection (cdn: cloudflare)
 - ❌ Asharq Al-Awsat - Cloudflare protection (cdn: cloudflare)
+- ❌ Folha - Cloudflare protection (cdn: cloudflare)
 
 ### Not yet tested
-- ⏳ Slashdot - Has search, needs testing
 - ⏳ Guardian AU - Can use same API as Guardian
-- ⏳ Folha - Portuguese, search page timeout
 
 ## Future Improvements
 - [ ] Add more platforms with working search

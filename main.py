@@ -500,6 +500,8 @@ class DataFetcher:
             
         crawler_type = "newsnow"
         url_template = None
+        sub_feeds = []  # Sub-feeds list for combined RSS sources
+        use_cloudscraper = False  # Whether to use cloudscraper for Cloudflare bypass
 
         # 解析 id_info
         if isinstance(id_info, tuple):
@@ -510,6 +512,10 @@ class DataFetcher:
             crawler_cfg = id_info.get("crawler", {}) or {}
             crawler_type = crawler_cfg.get("type", "newsnow")
             url_template = crawler_cfg.get("url_template")
+            sub_feeds = crawler_cfg.get("sub_feeds", [])  # Get sub-feeds if defined
+            # Check if site uses Cloudflare CDN
+            cdn = id_info.get("cdn", "")
+            use_cloudscraper = cdn.lower() == "cloudflare"
         else:
             id_value = id_info
             alias = id_value
@@ -548,73 +554,110 @@ class DataFetcher:
         retries = 0
         while retries <= max_retries:
             try:
-                # Handle RSS feeds
+                # Handle RSS feeds (with optional sub-feeds support)
                 if crawler_type == "rss":
-                    if self.debug_mode:
-                        print(f"  🌐 Fetching RSS feed: {url}")
+                    all_items = []
                     
-                    response = requests.get(url, proxies=proxies, headers=headers, timeout=15)
-                    response.raise_for_status()
-                    text = response.text
+                    # Create cloudscraper session if needed for Cloudflare bypass
+                    scraper_session = None
+                    if use_cloudscraper:
+                        try:
+                            import cloudscraper
+                            scraper_session = cloudscraper.create_scraper()
+                            if self.debug_mode:
+                                print(f"  🛡️ Using cloudscraper for Cloudflare bypass")
+                        except ImportError:
+                            print(f"⚠️ cloudscraper not installed, falling back to requests")
                     
-                    if self.debug_mode:
-                        print(f"  📄 Response received: {len(text)} characters")
-                        print(f"  🔍 Content-Type: {response.headers.get('content-type', 'unknown')}")
-                    
-                    # Parse RSS/Atom XML
-                    items = []
-                    try:
-                        root = ET.fromstring(text)
-                        
-                        if self.debug_mode:
-                            print(f"  📋 XML root tag: {root.tag}")
-                        
-                        # RSS items
-                        rss_items = root.findall(".//item")
-                        if self.debug_mode:
-                            print(f"  📰 Found {len(rss_items)} RSS items")
-                        
-                        for item in rss_items:
-                            title_el = item.find("title")
-                            link_el = item.find("link")
-                            title = title_el.text.strip() if title_el is not None and title_el.text else ""
-                            link = link_el.text.strip() if link_el is not None and link_el.text else ""
-                            if title:
-                                items.append({"title": title, "url": link})
-                        
-                        # Atom entries
-                        atom_entries = root.findall(".//{http://www.w3.org/2005/Atom}entry")
-                        if self.debug_mode:
-                            print(f"  📰 Found {len(atom_entries)} Atom entries")
-                        
-                        for entry in atom_entries:
-                            title_el = entry.find("{http://www.w3.org/2005/Atom}title")
-                            link_el = entry.find("{http://www.w3.org/2005/Atom}link")
-                            title = title_el.text.strip() if title_el is not None and title_el.text else ""
-                            link = ""
-                            if link_el is not None:
-                                link = link_el.get("href", "") or (link_el.text or "")
-                            if title:
-                                items.append({"title": title, "url": link})
-                        
-                        if self.debug_mode:
-                            print(f"  ✅ Successfully parsed {len(items)} total items")
+                    # Helper function to parse RSS/Atom feed
+                    def parse_rss_feed(feed_url: str, feed_name: str = "main") -> List[Dict]:
+                        """Parse RSS/Atom feed and return list of items"""
+                        items = []
+                        try:
+                            if self.debug_mode:
+                                print(f"  🌐 Fetching RSS feed ({feed_name}): {feed_url}")
                             
-                    except ET.ParseError as e:
-                        print(f"❌ Failed to parse RSS/Atom XML for {id_value}: {e}")
-                        if self.debug_mode:
-                            print(f"  📄 Raw response (first 500 chars): {text[:500]}...")
-                        items = []
-                    except Exception as e:
-                        print(f"❌ Unexpected error parsing RSS/Atom for {id_value}: {e}")
-                        if self.debug_mode:
-                            import traceback
-                            traceback.print_exc()
-                        items = []
+                            # Use cloudscraper if available, otherwise requests
+                            if scraper_session:
+                                resp = scraper_session.get(feed_url, timeout=15)
+                            else:
+                                resp = requests.get(feed_url, proxies=proxies, headers=headers, timeout=15)
+                            resp.raise_for_status()
+                            feed_text = resp.text
+                            
+                            if self.debug_mode:
+                                print(f"  📄 Response received: {len(feed_text)} characters")
+                            
+                            root = ET.fromstring(feed_text)
+                            
+                            # RSS items
+                            rss_items = root.findall(".//item")
+                            for item in rss_items:
+                                title_el = item.find("title")
+                                link_el = item.find("link")
+                                title = title_el.text.strip() if title_el is not None and title_el.text else ""
+                                link = link_el.text.strip() if link_el is not None and link_el.text else ""
+                                if title:
+                                    items.append({"title": title, "url": link})
+                            
+                            # Atom entries
+                            atom_entries = root.findall(".//{http://www.w3.org/2005/Atom}entry")
+                            for entry in atom_entries:
+                                title_el = entry.find("{http://www.w3.org/2005/Atom}title")
+                                link_el = entry.find("{http://www.w3.org/2005/Atom}link")
+                                title = title_el.text.strip() if title_el is not None and title_el.text else ""
+                                link = ""
+                                if link_el is not None:
+                                    link = link_el.get("href", "") or (link_el.text or "")
+                                if title:
+                                    items.append({"title": title, "url": link})
+                            
+                            if self.debug_mode:
+                                print(f"  ✅ Parsed {len(items)} items from {feed_name}")
+                                
+                        except ET.ParseError as e:
+                            print(f"❌ Failed to parse RSS/Atom XML for {feed_name}: {e}")
+                        except requests.RequestException as e:
+                            print(f"❌ Failed to fetch RSS feed {feed_name}: {e}")
+                        except Exception as e:
+                            print(f"❌ Unexpected error parsing {feed_name}: {e}")
+                        
+                        return items
                     
-                    data_obj = {"status": "success", "items": items}
+                    # Fetch main feed
+                    main_items = parse_rss_feed(url, "main")
+                    all_items.extend(main_items)
+                    
+                    # Fetch sub-feeds if defined
+                    if sub_feeds:
+                        if self.debug_mode:
+                            print(f"  📡 Processing {len(sub_feeds)} sub-feeds...")
+                        
+                        for sub_feed in sub_feeds:
+                            sub_url = sub_feed.get("url", "")
+                            sub_name = sub_feed.get("name", "sub")
+                            if sub_url:
+                                sub_items = parse_rss_feed(sub_url, sub_name)
+                                all_items.extend(sub_items)
+                                # Small delay between sub-feed requests
+                                time.sleep(0.5)
+                    
+                    # Deduplicate by URL (keep first occurrence)
+                    seen_urls = set()
+                    unique_items = []
+                    for item in all_items:
+                        item_url = item.get("url", "")
+                        if item_url and item_url not in seen_urls:
+                            seen_urls.add(item_url)
+                            unique_items.append(item)
+                        elif not item_url:
+                            # Keep items without URL (rare but possible)
+                            unique_items.append(item)
+                    
+                    feed_info = f"main + {len(sub_feeds)} sub-feeds" if sub_feeds else "main"
+                    data_obj = {"status": "success", "items": unique_items}
                     data_text = json.dumps(data_obj, ensure_ascii=False)
-                    print(f"获取 {id_value} 成功（RSS -> converted to JSON, {len(items)} items）")
+                    print(f"获取 {id_value} 成功（RSS {feed_info} -> {len(unique_items)} items）")
                     return data_text, id_value, alias
                 
                 # Handle Google News sitemap feeds

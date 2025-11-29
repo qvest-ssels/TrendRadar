@@ -22,7 +22,7 @@ async def test_platform(name, url):
         await stealth.apply_stealth_async(page)
         
         try:
-            await page.goto(url, wait_until='networkidle', timeout=30000)
+            await page.goto(url, wait_until='domcontentloaded', timeout=20000)
             
             # Wait for Cloudflare
             await asyncio.sleep(3)
@@ -60,12 +60,8 @@ async def test_platform(name, url):
 
 async def main():
     platforms = [
-        # Slashdot - works! 28 articles
-        ('Slashdot', 'https://slashdot.org/index2.pl?fhfilter=technology'),
-        # Guardian Australia - use correct search
-        ('Guardian AU', 'https://www.theguardian.com/au/search?q=technology'),
-        # Daily Maverick - Cloudflare but articles found
-        ('Daily Maverick', 'https://www.dailymaverick.co.za/?s=technology'),
+        # Folha - try different search URL formats
+        ('Folha busca', 'https://www1.folha.uol.com.br/busca/?q=tecnologia&periodo=todos&site=online'),
     ]
     for name, url in platforms:
         await test_platform(name, url)

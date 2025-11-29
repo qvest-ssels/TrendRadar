@@ -158,16 +158,21 @@ class SiteSearchService:
                     "api_url": search_config.get("api_url", ""),
                     "api_key": search_config.get("api_key", ""),
                     "selectors": search_config.get("selectors", {
-                        "results": "article, .search-result, .result-item, [class*='article'], [class*='result']",
-                        "title": "h1 a, h2 a, h3 a, a[class*='title'], .title a",
-                        "link": "a[href]",
+                        "results": search_config.get("result_selector", "article, .search-result, .result-item, [class*='article'], [class*='result']"),
+                        "title": search_config.get("title_selector", "h1 a, h2 a, h3 a, a[class*='title'], .title a"),
+                        "link": search_config.get("link_selector", "a[href]"),
                         "description": "p, .excerpt, .summary, [class*='desc']",
                         "date": "time, .date, [class*='date']"
                     }),
                     "rate_limit": search_config.get("rate_limit", 2.0),
                     "max_pages": search_config.get("max_pages", 2),
                     "requires_js": search_config.get("requires_js", False),
-                    "wait_selector": search_config.get("wait_selector", "article, .result")
+                    "wait_selector": search_config.get("wait_selector", "article, .result"),
+                    "use_cloudscraper": search_config.get("use_cloudscraper", False),
+                    # Additional YAML-specific selectors
+                    "result_selector": search_config.get("result_selector"),
+                    "title_selector": search_config.get("title_selector"),
+                    "link_selector": search_config.get("link_selector"),
                 }
                 logger.debug(f"Loaded search config for {platform_id} from YAML")
         except Exception as e:
@@ -291,6 +296,10 @@ class SiteSearchService:
         if config.get("requires_js", False):
             return self._search_with_browser(platform_id, config, query, max_results)
         
+        # Check if site uses cloudscraper for Cloudflare bypass
+        if config.get("use_cloudscraper", False):
+            return self._search_with_cloudscraper(platform_id, config, query, max_results)
+        
         results = []
         base_url = config.get("base_url", "")
         search_url_template = config.get("search_url", "")
@@ -413,6 +422,70 @@ class SiteSearchService:
                 loop.close()
         except Exception as e:
             logger.error(f"[{platform_id}] Async execution failed: {e}")
+            return []
+    
+    def _search_with_cloudscraper(
+        self,
+        platform_id: str,
+        config: Dict,
+        query: str,
+        max_results: int
+    ) -> List[Dict]:
+        """Search using cloudscraper for Cloudflare-protected sites"""
+        import asyncio
+        from .cloudscraper_service import get_cloudscraper_service
+        
+        search_url_template = config.get("search_url", "")
+        rate_limit = config.get("rate_limit", 2.0)
+        
+        # Get selectors - support both formats
+        result_selector = config.get("result_selector") or config.get("selectors", {}).get("results", "article")
+        title_selector = config.get("title_selector") or config.get("selectors", {}).get("title", "a")
+        link_selector = config.get("link_selector") or config.get("selectors", {}).get("link", "a")
+        
+        # Respect rate limits
+        self.rate_limiter.wait_if_needed(platform_id, rate_limit)
+        
+        async def do_cloudscraper_search():
+            service = get_cloudscraper_service()
+            try:
+                results = await service.search_site(
+                    search_url=search_url_template,
+                    query=query,
+                    result_selector=result_selector,
+                    title_selector=title_selector,
+                    link_selector=link_selector,
+                    max_results=max_results
+                )
+                
+                # Format results to match expected structure
+                formatted_results = []
+                for r in results:
+                    formatted_results.append({
+                        "title": r.get("title", ""),
+                        "url": r.get("url", ""),
+                        "description": "",  # cloudscraper doesn't extract descriptions
+                        "date": None,
+                        "platform_id": platform_id
+                    })
+                
+                logger.info(f"[{platform_id}] Cloudscraper search found {len(formatted_results)} results for '{query}'")
+                return formatted_results
+                
+            except Exception as e:
+                logger.error(f"[{platform_id}] Cloudscraper search failed: {e}")
+                return []
+        
+        # Run async function
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(do_cloudscraper_search())
+            finally:
+                loop.close()
+        except Exception as e:
+            logger.error(f"[{platform_id}] Cloudscraper async execution failed: {e}")
             return []
     
     def _parse_search_results(
