@@ -67,9 +67,16 @@ class DataService:
             fetch_time = datetime.now()
 
         # 转换为新闻列表
+        # Import paywall info
+        try:
+            from mcp_server.utils.platform_metadata import has_paywall
+        except ImportError:
+            def has_paywall(x): return False
+
         news_list = []
         for platform_id, titles in all_titles.items():
             platform_name = id_to_name.get(platform_id, platform_id)
+            is_paywalled = has_paywall(platform_id)
 
             for title, info in titles.items():
                 # 取第一个排名
@@ -82,13 +89,18 @@ class DataService:
                     "rank": rank,
                     "timestamp": fetch_time.strftime("%Y-%m-%d %H:%M:%S"),
                     "data_source": "cached",  # Data from output files
-                    "woodchuck_page": f"/source/{platform_id}/"  # Link to Woodchuck static page
+                    "woodchuck_page": f"/source/{platform_id}/",  # Link to Woodchuck static page
+                    "has_paywall": is_paywalled  # Whether source has paywall
                 }
 
                 # 条件性添加 URL 字段
                 if include_url:
-                    news_item["url"] = info.get("url", "")
+                    url = info.get("url", "")
+                    news_item["url"] = url
                     news_item["mobileUrl"] = info.get("mobileUrl", "")
+                    # Add archive URL for paywalled sources
+                    if is_paywalled and url:
+                        news_item["archive_url"] = f"https://archive.is/{url}"
 
                 news_list.append(news_item)
 

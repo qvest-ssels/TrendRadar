@@ -9,7 +9,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -28,6 +28,13 @@ from .server import (
 
 # Import data layer for FTS search
 from .data import get_database, get_data_store
+
+# Import feature flags
+try:
+    from .utils.feature_flags import get_flags, init_flags_from_request
+    FEATURE_FLAGS_AVAILABLE = True
+except ImportError:
+    FEATURE_FLAGS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -236,6 +243,44 @@ async def call_tool(tool_name: str, request: ToolRequest):
     """
     args = request.arguments
     
+    # Check if paywall_bypass feature is enabled via argument
+    paywall_bypass_enabled = args.get("feature_paywall_bypass") in ("1", "true", True, 1)
+    
+    # Also check from feature flags if available
+    if not paywall_bypass_enabled and FEATURE_FLAGS_AVAILABLE:
+        flags = get_flags()
+        paywall_bypass_enabled = flags.is_enabled("paywall_bypass")
+    
+    def filter_archive_urls(result_data):
+        """Remove archive_url from results if paywall_bypass is not enabled."""
+        if paywall_bypass_enabled:
+            return result_data
+        
+        # Parse if string
+        if isinstance(result_data, str):
+            try:
+                data = json.loads(result_data)
+            except json.JSONDecodeError:
+                return result_data
+        else:
+            data = result_data
+        
+        # Handle dict with 'news' key
+        if isinstance(data, dict) and "news" in data:
+            for item in data.get("news", []):
+                if isinstance(item, dict):
+                    item.pop("archive_url", None)
+        # Handle list of news items
+        elif isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict):
+                    item.pop("archive_url", None)
+        
+        # Return as string if input was string
+        if isinstance(result_data, str):
+            return json.dumps(data)
+        return data
+    
     try:
         # Access the underlying function via .fn attribute of FunctionTool
         if tool_name == "resolve_date_range":
@@ -247,8 +292,9 @@ async def call_tool(tool_name: str, request: ToolRequest):
             result = await get_latest_news.fn(
                 platforms=args.get("platforms"),
                 limit=args.get("limit", 10),
-                include_url=args.get("include_url", False)
+                include_url=args.get("include_url", True)  # Default to True for chat use
             )
+            result = filter_archive_urls(result)
         
         elif tool_name == "get_trending_topics":
             result = await get_trending_topics.fn(
@@ -262,6 +308,7 @@ async def call_tool(tool_name: str, request: ToolRequest):
                 platform=args.get("platform"),
                 limit=args.get("limit", 50)
             )
+            result = filter_archive_urls(result)
         
         elif tool_name == "analyze_topic_trend":
             result = await analyze_topic_trend.fn(
@@ -283,6 +330,7 @@ async def call_tool(tool_name: str, request: ToolRequest):
                 platforms=args.get("platforms"),
                 limit=args.get("limit", 20)
             )
+            result = filter_archive_urls(result)
         
         elif tool_name == "generate_summary_report":
             result = await generate_summary_report.fn(
