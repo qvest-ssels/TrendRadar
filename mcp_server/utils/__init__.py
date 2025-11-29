@@ -15,6 +15,7 @@ from .url_utils import (
     get_url_signature,
     URLRegistry,
     get_url_registry,
+    reset_url_registry,
 )
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     "get_url_signature",
     "URLRegistry",
     "get_url_registry",
+    "reset_url_registry",
 ]

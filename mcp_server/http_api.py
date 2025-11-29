@@ -7,9 +7,9 @@ allowing external services (like News Chat) to call them via REST.
 
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -25,6 +25,9 @@ from .server import (
     generate_summary_report,
     get_woodchuck_pages,
 )
+
+# Import data layer for FTS search
+from .data import get_database, get_data_store
 
 logger = logging.getLogger(__name__)
 
@@ -77,8 +80,149 @@ async def list_tools():
             {"name": "search_news", "description": "Search news headlines by keyword"},
             {"name": "generate_summary_report", "description": "Generate a summary report"},
             {"name": "get_woodchuck_pages", "description": "Get Woodchuck News page index"},
+            {"name": "search_headlines_fts", "description": "Full-text search across headlines (SQLite FTS5)"},
         ]
     }
+
+
+# ========== Database Search Endpoints ==========
+
+@app.get("/search")
+async def search_headlines_fts(
+    q: str = Query(..., description="Search query (supports FTS5 syntax: AND, OR, NOT, phrases)"),
+    platforms: Optional[str] = Query(None, description="Comma-separated platform IDs"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    limit: int = Query(50, description="Maximum results", ge=1, le=500)
+):
+    """
+    Full-text search across headlines using SQLite FTS5.
+    
+    Query syntax examples:
+    - Simple: `AI` - finds headlines containing "AI"
+    - Phrase: `"artificial intelligence"` - exact phrase
+    - AND: `AI AND regulation` - both terms
+    - OR: `AI OR KI` - either term
+    - NOT: `AI NOT china` - first but not second
+    - Prefix: `tech*` - prefix matching
+    """
+    try:
+        store = get_data_store()
+        platform_list = platforms.split(',') if platforms else None
+        
+        results = store.search_headlines(
+            query=q,
+            platforms=platform_list,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit
+        )
+        
+        return {
+            "query": q,
+            "count": len(results),
+            "results": results
+        }
+    except Exception as e:
+        logger.error(f"Search error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/headlines/latest")
+async def get_latest_headlines_db(
+    platforms: Optional[str] = Query(None, description="Comma-separated platform IDs"),
+    limit: int = Query(50, description="Maximum results", ge=1, le=500)
+):
+    """Get most recent headlines from database."""
+    try:
+        store = get_data_store()
+        platform_list = platforms.split(',') if platforms else None
+        
+        results = store.get_latest_headlines(
+            platforms=platform_list,
+            limit=limit
+        )
+        
+        return {
+            "count": len(results),
+            "headlines": results
+        }
+    except Exception as e:
+        logger.error(f"Error fetching headlines: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/headlines/date/{date}")
+async def get_headlines_by_date_db(
+    date: str,
+    platforms: Optional[str] = Query(None, description="Comma-separated platform IDs"),
+    limit: int = Query(100, description="Maximum results", ge=1, le=1000)
+):
+    """Get headlines for a specific date from database."""
+    try:
+        store = get_data_store()
+        platform_list = platforms.split(',') if platforms else None
+        
+        results = store.get_headlines_by_date(
+            date=date,
+            platforms=platform_list,
+            limit=limit
+        )
+        
+        return {
+            "date": date,
+            "count": len(results),
+            "headlines": results
+        }
+    except Exception as e:
+        logger.error(f"Error fetching headlines: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/platforms/summary")
+async def get_platform_summary(
+    date: Optional[str] = Query(None, description="Date (YYYY-MM-DD), omit for all-time")
+):
+    """Get headline counts by platform."""
+    try:
+        store = get_data_store()
+        results = store.get_platform_summary(date=date)
+        
+        return {
+            "date": date or "all-time",
+            "platforms": results
+        }
+    except Exception as e:
+        logger.error(f"Error fetching platform summary: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/db/stats")
+async def get_database_stats():
+    """Get database statistics."""
+    try:
+        db = get_database()
+        return db.stats()
+    except Exception as e:
+        logger.error(f"Error fetching stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/urls/lookup")
+async def lookup_url(
+    url: str = Query(..., description="URL to look up")
+):
+    """Look up a URL in the registry."""
+    try:
+        store = get_data_store()
+        result = store.lookup_url(url)
+        
+        if result:
+            return {"found": True, "url": result}
+        return {"found": False, "url": None}
+    except Exception as e:
+        logger.error(f"Error looking up URL: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/tools/{tool_name}")

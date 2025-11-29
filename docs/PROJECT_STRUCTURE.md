@@ -9,6 +9,11 @@ TrendRadar/
 │   └── README.md         # 详细文档
 ├── mcp_server/          # MCP 服务器实现
 │   ├── server.py         # MCP 服务器主文件
+│   ├── http_api.py       # REST API wrapper (port 3334)
+│   ├── data/             # 数据持久化层
+│   │   ├── schema.py     # SQLite schema with FTS5
+│   │   ├── store.py      # DataStore unified access
+│   │   └── migrate.py    # JSON to SQLite migration
 │   ├── services/         # 业务逻辑服务
 │   │   ├── data_service.py    # 数据服务
 │   │   ├── parser_service.py  # 解析服务
@@ -21,9 +26,12 @@ TrendRadar/
 │   │   └── system.py         # 系统管理工具
 │   └── utils/            # 工具函数
 │       ├── date_parser.py    # 日期解析
+│       ├── url_utils.py      # URL normalization & deduplication
 │       └── errors.py         # 错误处理
 ├── output/               # 输出目录
+│   ├── trendradar.db        # SQLite database (FTS5 search)
 │   └── [YYYY年MM月DD日]/    # 按日期组织的输出
+│       ├── json/            # JSON format data
 │       ├── txt/             # 文本格式数据
 │       └── html/            # HTML 报告
 ├── tests/                # 测试文件
@@ -75,9 +83,37 @@ TrendRadar/
 ```
 数据源 → main.py → 解析 → 存储 → MCP 服务器 → AI 助手
     ↓         ↓       ↓       ↓         ↓          ↓
-平台 API  数据获取  格式化  output/   工具接口   智能分析
-RSS 源    缓存机制  去重    数据库    协议转换   趋势预测
+平台 API  数据获取  格式化  SQLite    工具接口   智能分析
+RSS 源    缓存机制  去重    + JSON    协议转换   趋势预测
+                          FTS5搜索  REST API
 ```
+
+## 数据存储架构
+
+TrendRadar uses a hybrid storage approach:
+
+1. **SQLite Database** (`output/trendradar.db`)
+   - Full-text search with FTS5
+   - URL deduplication (100+ tracking params stripped)
+   - Crawl session metadata
+   - Fast queries across all historical data
+
+2. **JSON Files** (`output/YYYY-MM-DD/json/`)
+   - Human-readable output
+   - Static file serving for Woodchuck News
+   - Backward compatibility
+
+### Database Schema
+- `urls`: URL registry with hash-based deduplication
+- `headlines`: News items with platform metadata
+- `headlines_fts`: FTS5 virtual table for search
+- `crawl_sessions`: Crawl run metadata
+- `platform_stats`: Per-platform statistics
+
+### URL Normalization
+- Strips 100+ tracking parameters (utm_*, fbclid, gclid, etc.)
+- Normalizes URLs for deduplication
+- 16-character SHA-256 hash for efficient lookup
 
 ## 架构特点
 

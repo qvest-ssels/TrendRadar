@@ -287,15 +287,34 @@ class URLRegistry:
     """
     Registry for tracking unique URLs and linking live/cached content.
     
-    Stores normalized URL hashes and provides lookup functionality
-    to connect live crawled content with cached versions.
+    Supports both in-memory operation and SQLite persistence.
+    When a DataStore is provided, operations are persisted to the database.
     """
     
-    def __init__(self):
-        # Map of url_hash -> {normalized_url, first_seen, last_seen, sources}
+    def __init__(self, use_db: bool = False):
+        """
+        Initialize URL registry.
+        
+        Args:
+            use_db: If True, use SQLite persistence via DataStore
+        """
+        self._use_db = use_db
+        self._store = None
+        
+        # In-memory fallback
         self._registry: dict[str, dict] = {}
-        # Map of domain -> set of url_hashes
         self._domain_index: dict[str, set] = {}
+    
+    def _get_store(self):
+        """Lazy-load DataStore to avoid circular imports."""
+        if self._store is None and self._use_db:
+            try:
+                from ..data.store import get_data_store
+                self._store = get_data_store()
+            except ImportError:
+                logger.warning("DataStore not available, using in-memory registry")
+                self._use_db = False
+        return self._store
     
     def register(self, url: str, source: str = "unknown") -> Tuple[str, bool]:
         """
@@ -308,8 +327,16 @@ class URLRegistry:
         Returns:
             Tuple of (url_hash, is_new) where is_new indicates if this is first time seeing this URL
         """
+        store = self._get_store()
+        
+        if store:
+            # Use persistent storage
+            url_id, hash_key, is_new = store.register_url(url, source)
+            return hash_key, is_new
+        
+        # Fall back to in-memory
         normalized = normalize_url(url)
-        hash_key = url_hash(normalized, normalize=False)  # Already normalized
+        hash_key = url_hash(normalized, normalize=False)
         domain = extract_domain(normalized)
         
         is_new = hash_key not in self._registry
@@ -318,15 +345,13 @@ class URLRegistry:
             self._registry[hash_key] = {
                 'normalized_url': normalized,
                 'original_urls': [url],
-                'first_seen': None,  # Would be timestamp in production
+                'first_seen': None,
                 'sources': {source},
             }
-            # Update domain index
             if domain not in self._domain_index:
                 self._domain_index[domain] = set()
             self._domain_index[domain].add(hash_key)
         else:
-            # Update existing entry
             entry = self._registry[hash_key]
             entry['sources'].add(source)
             if url not in entry['original_urls']:
@@ -344,6 +369,12 @@ class URLRegistry:
         Returns:
             Registry entry if found, None otherwise
         """
+        store = self._get_store()
+        
+        if store:
+            return store.lookup_url(url)
+        
+        # Fall back to in-memory
         normalized = normalize_url(url)
         hash_key = url_hash(normalized, normalize=False)
         return self._registry.get(hash_key)
@@ -358,8 +389,14 @@ class URLRegistry:
         Returns:
             Normalized URL if found in cache, None otherwise
         """
+        store = self._get_store()
+        
+        if store:
+            return store.find_cached_url(url)
+        
+        # Fall back to in-memory
         entry = self.lookup(url)
-        if entry and 'cached' in entry['sources']:
+        if entry and 'cached' in entry.get('sources', set()):
             return entry['normalized_url']
         return None
     
@@ -373,6 +410,12 @@ class URLRegistry:
         Returns:
             List of registry entries for the domain
         """
+        store = self._get_store()
+        
+        if store:
+            return store.get_urls_by_domain(domain)
+        
+        # Fall back to in-memory
         domain = domain.lower()
         if domain not in self._domain_index:
             return []
@@ -385,28 +428,55 @@ class URLRegistry:
     
     def stats(self) -> dict:
         """Get registry statistics."""
+        store = self._get_store()
+        
+        if store:
+            db_stats = store.db.stats()
+            return {
+                'total_urls': db_stats.get('urls_count', 0),
+                'total_domains': len(db_stats.get('top_domains', [])),
+                'top_domains': db_stats.get('top_domains', []),
+                'persistent': True,
+            }
+        
+        # Fall back to in-memory stats
         return {
             'total_urls': len(self._registry),
             'total_domains': len(self._domain_index),
             'sources': self._get_source_counts(),
+            'persistent': False,
         }
     
     def _get_source_counts(self) -> dict[str, int]:
-        """Count URLs by source."""
+        """Count URLs by source (in-memory only)."""
         counts: dict[str, int] = {}
         for entry in self._registry.values():
-            for source in entry['sources']:
+            for source in entry.get('sources', []):
                 counts[source] = counts.get(source, 0) + 1
         return counts
 
 
-# Global registry instance (can be replaced with persistent storage)
+# Global registry instance
 _url_registry: Optional[URLRegistry] = None
 
 
-def get_url_registry() -> URLRegistry:
-    """Get the global URL registry instance."""
+def get_url_registry(use_db: bool = False) -> URLRegistry:
+    """
+    Get the global URL registry instance.
+    
+    Args:
+        use_db: If True, use SQLite persistence
+        
+    Returns:
+        URLRegistry instance
+    """
     global _url_registry
     if _url_registry is None:
-        _url_registry = URLRegistry()
+        _url_registry = URLRegistry(use_db=use_db)
     return _url_registry
+
+
+def reset_url_registry():
+    """Reset the global URL registry (for testing)."""
+    global _url_registry
+    _url_registry = None

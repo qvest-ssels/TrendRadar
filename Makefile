@@ -1,4 +1,4 @@
-.PHONY: test test-verbose clean help start-server stop-server server-status start-rest-api stop-rest-api start-ollama stop-ollama ollama-status start-news-chat stop-news-chat news-chat-status start-woodchuck-server stop-woodchuck-server woodchuck-status generate-woodchuck start-all start-all-warmup stop-all status check-cache warmup warmup-force warmup-list
+.PHONY: test test-verbose clean help start-server stop-server server-status start-rest-api stop-rest-api start-ollama stop-ollama ollama-status start-news-chat stop-news-chat news-chat-status start-woodchuck-server stop-woodchuck-server woodchuck-status generate-woodchuck start-all start-all-warmup stop-all status check-cache warmup warmup-force warmup-list db-migrate db-stats db-vacuum
 
 # Variables
 UV := uv
@@ -47,6 +47,11 @@ help:
 	@echo "  warmup         - Run warmup crawl (only if no cache)"
 	@echo "  warmup-force   - Force warmup crawl (even with cache)"
 	@echo "  warmup-list    - List platforms for warmup"
+	@echo ""
+	@echo "  === Database ==="
+	@echo "  db-migrate     - Import existing JSON files into SQLite"
+	@echo "  db-stats       - Show database statistics"
+	@echo "  db-vacuum      - Optimize database (vacuum)"
 	@echo ""
 	@echo "  === Convenience ==="
 	@echo "  start-all        - Start all services (REST API + News Chat)"
@@ -391,6 +396,24 @@ status: server-status
 test-news-chat:
 	@echo "Testing News Chat..."
 	cd news-chat && PYTHONPATH="$$(pwd)" .venv/bin/python -m pytest tests/ -v
+
+# === Database Management ===
+
+# Migrate existing JSON files to SQLite database
+db-migrate:
+	@echo "Migrating JSON files to SQLite database..."
+	uv run python -m mcp_server.data.migrate --output-dir output
+	@echo "Migration complete. Database: output/trendradar.db"
+
+# Show database statistics
+db-stats:
+	@echo "Database Statistics:"
+	@uv run python -c "from mcp_server.data.schema import get_database; import json; db = get_database(); print(json.dumps(db.stats(), indent=2, default=str))"
+
+# Optimize database (vacuum)
+db-vacuum:
+	@echo "Optimizing database..."
+	@uv run python -c "from mcp_server.data.schema import get_database; db = get_database(); db.vacuum(); print('Database vacuumed')"
 
 # Clean up cache and temp files
 clean:
