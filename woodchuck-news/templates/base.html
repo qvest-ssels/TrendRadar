@@ -100,6 +100,14 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+        /* Chat message link styles */
+        .chat-message a {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+        .chat-message a:hover {
+            color: #1d4ed8;
+        }
     </style>
     
     {% block extra_head %}{% endblock %}
@@ -249,6 +257,14 @@
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                     </button>
+                    <button 
+                        type="button" 
+                        id="chat-stop"
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        disabled
+                    >
+                        Stop
+                    </button>
                 </form>
             </div>
         </div>
@@ -318,7 +334,8 @@
             connected: false,
             expanded: false,
             sending: false,
-            messages: []
+            messages: [],
+            abortController: null
         };
         
         // DOM Elements
@@ -329,6 +346,7 @@
         const chatForm = document.getElementById('chat-form');
         const chatInput = document.getElementById('chat-input');
         const chatSubmit = document.getElementById('chat-submit');
+        const chatStop = document.getElementById('chat-stop');
         const chatError = document.getElementById('chat-error');
         const chatErrorText = document.getElementById('chat-error-text');
         const statusDot = document.getElementById('status-dot');
@@ -391,6 +409,81 @@
             }
         });
         
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Format content with markdown links (extract links before escaping)
+        function formatContent(text) {
+            if (!text) return '';
+            
+            // Extract markdown links BEFORE escaping HTML
+            const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+            const links = [];
+            let match;
+            while ((match = linkRegex.exec(text)) !== null) {
+                links.push({ full: match[0], text: match[1], url: match[2] });
+            }
+            
+            // Replace links with placeholders
+            let processed = text;
+            links.forEach((link, idx) => {
+                processed = processed.replace(link.full, `__LINK_${idx}__`);
+            });
+            
+            // Escape HTML
+            processed = escapeHtml(processed);
+            
+            // Restore links as HTML anchors
+            links.forEach((link, idx) => {
+                const safeUrl = escapeHtml(link.url);
+                const safeText = escapeHtml(link.text);
+                processed = processed.replace(
+                    `__LINK_${idx}__`,
+                    `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeText}</a>`
+                );
+            });
+            
+            // Convert line breaks
+            processed = processed.replace(/\n/g, '<br>');
+            
+            return processed;
+        }
+        
+        // Update button states
+        function updateButtonState() {
+            if (chatState.sending) {
+                chatInput.disabled = true;
+                chatSubmit.disabled = true;
+                chatStop.disabled = false;
+                submitText.textContent = 'Sending...';
+                submitSpinner.classList.remove('hidden');
+            } else {
+                chatInput.disabled = !chatState.connected;
+                chatSubmit.disabled = !chatState.connected;
+                chatStop.disabled = true;
+                submitText.textContent = 'Send';
+                submitSpinner.classList.add('hidden');
+            }
+        }
+        
+        // Stop streaming
+        function stopStreaming() {
+            if (chatState.abortController) {
+                chatState.abortController.abort();
+                chatState.abortController = null;
+            }
+            chatState.sending = false;
+            updateButtonState();
+            chatInput.focus();
+        }
+        
+        // Stop button handler
+        chatStop.addEventListener('click', stopStreaming);
+        
         // Add Message to Chat
         function addMessage(role, content, isStreaming = false) {
             const isUser = role === 'user';
@@ -430,7 +523,7 @@
             const messageDiv = document.getElementById(messageId);
             if (messageDiv) {
                 const bubble = messageDiv.querySelector('div');
-                bubble.textContent = content;
+                bubble.innerHTML = formatContent(content);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
         }
@@ -440,10 +533,8 @@
             if (!chatState.connected || chatState.sending || !message.trim()) return;
             
             chatState.sending = true;
-            chatInput.disabled = true;
-            chatSubmit.disabled = true;
-            submitText.textContent = 'Sending...';
-            submitSpinner.classList.remove('hidden');
+            chatState.abortController = new AbortController();
+            updateButtonState();
             
             // Add user message
             addMessage('user', message);
@@ -463,7 +554,8 @@
                     body: JSON.stringify({ 
                         messages: [{ role: 'user', content: message }],
                         stream: true
-                    })
+                    }),
+                    signal: chatState.abortController.signal
                 });
                 
                 if (!response.ok) {
@@ -505,14 +597,20 @@
                 }
                 
             } catch (error) {
-                updateMessage(assistantMsgId, `⚠️ Error: ${error.message}`);
-                console.error('Chat error:', error);
+                if (error.name === 'AbortError') {
+                    if (fullResponse) {
+                        updateMessage(assistantMsgId, fullResponse + '\n\n[Stopped]');
+                    } else {
+                        updateMessage(assistantMsgId, '[Stopped by user]');
+                    }
+                } else {
+                    updateMessage(assistantMsgId, `⚠️ Error: ${error.message}`);
+                    console.error('Chat error:', error);
+                }
             } finally {
                 chatState.sending = false;
-                chatInput.disabled = false;
-                chatSubmit.disabled = false;
-                submitText.textContent = 'Send';
-                submitSpinner.classList.add('hidden');
+                chatState.abortController = null;
+                updateButtonState();
                 chatInput.focus();
             }
         }
