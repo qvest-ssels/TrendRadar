@@ -169,14 +169,19 @@ stop-rest-api:
 	@if [ -f .rest_api.pid ]; then \
 		PID=`cat .rest_api.pid`; \
 		if kill -0 $$PID 2>/dev/null; then \
-			kill $$PID; \
+			kill $$PID 2>/dev/null || true; \
 			echo "REST API stopped (PID: $$PID)"; \
-		else \
-			echo "REST API process not found"; \
 		fi; \
 		rm -f .rest_api.pid; \
+	fi
+	@# Also kill any orphan processes by pattern
+	@pkill -f "uvicorn mcp_server.http_api:app.*3334" 2>/dev/null || true
+	@sleep 0.5
+	@if curl -s http://localhost:3334/health > /dev/null 2>&1; then \
+		echo "Warning: REST API still running, force killing..."; \
+		pkill -9 -f "uvicorn mcp_server.http_api:app" 2>/dev/null || true; \
 	else \
-		echo "No REST API PID file found"; \
+		echo "REST API stopped"; \
 	fi
 
 # Start Ollama LLM service (port 11434)
@@ -244,14 +249,20 @@ stop-news-chat:
 	@if [ -f news-chat/.news_chat.pid ]; then \
 		PID=`cat news-chat/.news_chat.pid`; \
 		if kill -0 $$PID 2>/dev/null; then \
-			kill $$PID; \
+			kill $$PID 2>/dev/null || true; \
 			echo "News Chat stopped (PID: $$PID)"; \
-		else \
-			echo "News Chat process not found"; \
 		fi; \
 		rm -f news-chat/.news_chat.pid; \
+	fi
+	@# Also kill any orphan uvicorn processes on port 8000
+	@pkill -f "uvicorn app.main:app.*8000" 2>/dev/null || true
+	@sleep 0.5
+	@if curl -s http://localhost:8000/api/status > /dev/null 2>&1; then \
+		echo "Warning: News Chat still running, force killing..."; \
+		pkill -9 -f "uvicorn app.main:app" 2>/dev/null || true; \
+		lsof -ti:8000 | xargs kill -9 2>/dev/null || true; \
 	else \
-		echo "No News Chat PID file found"; \
+		echo "News Chat stopped"; \
 	fi
 
 # Check News Chat status
@@ -289,15 +300,19 @@ start-woodchuck-server:
 
 # Stop Woodchuck News development server
 stop-woodchuck-server:
+	@echo "Stopping Woodchuck News server..."
 	@if [ -f woodchuck-news/.woodchuck.pid ]; then \
-		if kill -0 `cat woodchuck-news/.woodchuck.pid` 2>/dev/null; then \
-			kill `cat woodchuck-news/.woodchuck.pid` 2>/dev/null || true; \
-			echo "Woodchuck News server stopped"; \
+		PID=`cat woodchuck-news/.woodchuck.pid`; \
+		if kill -0 $$PID 2>/dev/null; then \
+			kill $$PID 2>/dev/null || true; \
+			echo "Woodchuck News server stopped (PID: $$PID)"; \
 		fi; \
 		rm -f woodchuck-news/.woodchuck.pid; \
-	else \
-		echo "Woodchuck News server is not running"; \
 	fi
+	@# Also kill any orphan http.server on port 8080
+	@pkill -f "http.server 8080" 2>/dev/null || true
+	@lsof -ti:8080 | xargs kill 2>/dev/null || true
+	@echo "Woodchuck News server stopped"
 
 # Check Woodchuck News server status
 woodchuck-status:
