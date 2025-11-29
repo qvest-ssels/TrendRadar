@@ -1,4 +1,4 @@
-.PHONY: test test-verbose clean help start-server stop-server server-status start-rest-api stop-rest-api start-news-chat stop-news-chat news-chat-status start-all stop-all status
+.PHONY: test test-verbose clean help start-server stop-server server-status start-rest-api stop-rest-api start-ollama stop-ollama ollama-status start-news-chat stop-news-chat news-chat-status start-all stop-all status
 
 # Default target
 help:
@@ -21,6 +21,11 @@ help:
 	@echo "  === REST API (port 3334) ==="
 	@echo "  start-rest-api - Start REST API wrapper for News Chat"
 	@echo "  stop-rest-api  - Stop REST API wrapper"
+	@echo ""
+	@echo "  === Ollama (port 11434) ==="
+	@echo "  start-ollama   - Start Ollama LLM service"
+	@echo "  stop-ollama    - Stop Ollama service"
+	@echo "  ollama-status  - Check Ollama status and models"
 	@echo ""
 	@echo "  === News Chat (port 8000) ==="
 	@echo "  start-news-chat - Start News Chat web service"
@@ -166,6 +171,51 @@ stop-rest-api:
 		echo "No REST API PID file found"; \
 	fi
 
+# Start Ollama LLM service (port 11434)
+start-ollama:
+	@echo "Starting Ollama..."
+	@if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then \
+		echo "Ollama is already running"; \
+		curl -s http://localhost:11434/api/tags | grep -o '"name":"[^"]*"' | head -5 || true; \
+	else \
+		ollama serve > .ollama.log 2>&1 & \
+		echo $$! > .ollama.pid; \
+		sleep 3; \
+		if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then \
+			echo "Ollama started"; \
+			echo "Available models:"; \
+			curl -s http://localhost:11434/api/tags | grep -o '"name":"[^"]*"' | sed 's/"name":"//g' | sed 's/"//g' || echo "  (none - run: ollama pull qwen2.5:7b)"; \
+		else \
+			echo "Failed to start Ollama. Is it installed? (brew install ollama)"; \
+		fi; \
+	fi
+
+# Stop Ollama service
+stop-ollama:
+	@echo "Stopping Ollama..."
+	@if [ -f .ollama.pid ]; then \
+		PID=`cat .ollama.pid`; \
+		if kill -0 $$PID 2>/dev/null; then \
+			kill $$PID; \
+			echo "Ollama stopped (PID: $$PID)"; \
+		else \
+			echo "Ollama process not found"; \
+		fi; \
+		rm -f .ollama.pid; \
+	else \
+		pkill -f "ollama serve" 2>/dev/null && echo "Ollama stopped" || echo "Ollama not running"; \
+	fi
+
+# Check Ollama status
+ollama-status:
+	@if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then \
+		echo "Ollama is running on http://localhost:11434"; \
+		echo "Available models:"; \
+		curl -s http://localhost:11434/api/tags | grep -o '"name":"[^"]*"' | sed 's/"name":"//g' | sed 's/"//g' || echo "  (none)"; \
+	else \
+		echo "Ollama is not running"; \
+	fi
+
 # Start News Chat web service (port 8000)
 start-news-chat:
 	@echo "Starting News Chat..."
@@ -210,10 +260,11 @@ news-chat-status:
 		fi; \
 	fi
 
-# Start all services (REST API + News Chat)
-start-all: start-rest-api start-news-chat
+# Start all services (Ollama + REST API + News Chat)
+start-all: start-ollama start-rest-api start-news-chat
 	@echo ""
 	@echo "All services started!"
+	@echo "  Ollama: http://localhost:11434"
 	@echo "  REST API: http://localhost:3334"
 	@echo "  News Chat: http://localhost:8000"
 
