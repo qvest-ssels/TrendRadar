@@ -834,8 +834,9 @@ class TestDeepSearchService:
             assert platform in service.SEARCH_CONFIGS, f"Missing config for {platform}"
             config = service.SEARCH_CONFIGS[platform]
             assert config["enabled"] is True
-            assert "search_url" in config
-            assert "selectors" in config
+            # Guardian uses API, others use search_url
+            assert "search_url" in config or "api_url" in config
+            assert "selectors" in config or config.get("type") == "api"
 
     def test_site_search_service_get_searchable_platforms(self):
         """Test that SiteSearchService correctly returns searchable platforms"""
@@ -849,6 +850,30 @@ class TestDeepSearchService:
         assert "theguardian" in searchable
         assert "spiegel" in searchable
         assert "aljazeera" in searchable
+
+    def test_site_search_service_language_filtering(self):
+        """Test that SiteSearchService correctly filters platforms by language"""
+        from mcp_server.services.search_service import SiteSearchService
+
+        service = SiteSearchService()
+        
+        # Test German platforms
+        german_platforms = service.get_searchable_platforms(language="de")
+        assert isinstance(german_platforms, list)
+        assert "spiegel" in german_platforms
+        assert "heise" in german_platforms
+        assert "theguardian" not in german_platforms  # Guardian is English
+        
+        # Test English platforms
+        english_platforms = service.get_searchable_platforms(language="en")
+        assert "theguardian" in english_platforms
+        assert "aljazeera" in english_platforms
+        assert "spiegel" not in english_platforms  # Spiegel is German
+        
+        # Test platform language lookup
+        assert service.get_platform_language("spiegel") == "de"
+        assert service.get_platform_language("theguardian") == "en"
+        assert service.get_platform_language("lemonde") == "fr"
 
     def test_site_search_service_is_search_enabled(self):
         """Test that SiteSearchService correctly identifies enabled platforms"""

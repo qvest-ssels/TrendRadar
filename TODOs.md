@@ -1,11 +1,11 @@
 # TrendRadar TODOs
 
 ## MCP Language Awareness
-- [ ] **Add language filtering to deep_search** - Currently the MCP tools don't know which language each platform uses
+- [x] **Add language filtering to deep_search** - ✅ DONE
   - Config has `language` field per platform (e.g., "de", "en", "zh", "fr")
-  - `deep_search` should allow filtering by language: `deep_search(query="AI", language="de")`
-  - Return language info in results metadata
-  - Consider auto-translating queries for non-English searches
+  - `deep_search` now supports `language` parameter: `deep_search(query="AI", language="de")`
+  - Returns language info in results metadata
+  - Added `get_platform_language()` and updated `get_searchable_platforms(language=)`
 
 ## Platform Search Status
 

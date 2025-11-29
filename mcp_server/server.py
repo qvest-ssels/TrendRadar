@@ -590,6 +590,7 @@ async def search_related_news_history(
 async def deep_search(
     query: str,
     platforms: Optional[List[str]] = None,
+    language: Optional[str] = None,
     mode: str = "both",
     max_results: int = 50,
     date_range: Optional[Dict[str, str]] = None,
@@ -604,15 +605,25 @@ async def deep_search(
     - both: 两种模式结合，去重后返回（推荐）
 
     当前支持站点搜索的平台：
-    - theguardian (The Guardian)
-    - spiegel (Der Spiegel)
-    - aljazeera (Al Jazeera English)
+    - theguardian (The Guardian) - en
+    - spiegel (Der Spiegel) - de
+    - aljazeera (Al Jazeera English) - en
+    - heise (Heise Online) - de
+    - lemonde (Le Monde) - fr
+    - straitstimes (The Straits Times) - en
+    - timesofindia (Times of India) - en
 
     Args:
         query: 搜索关键词
         platforms: 平台ID列表，如 ['theguardian', 'spiegel', 'aljazeera']
                    - 不指定时：使用所有支持搜索的平台
                    - 仅支持配置了 search 的平台才能进行站点搜索
+        language: 语言过滤，可选值：
+            - "en": 英语平台 (Guardian, Al Jazeera, Straits Times, Times of India)
+            - "de": 德语平台 (Spiegel, Heise)
+            - "fr": 法语平台 (Le Monde)
+            - "zh": 中文平台
+            - None: 不过滤，搜索所有平台（默认）
         mode: 搜索模式，可选值：
             - "headlines": 仅搜索本地缓存的新闻标题（快速，但仅限RSS更新的内容）
             - "site_search": 仅搜索站点（更全面，但较慢且有速率限制）
@@ -629,16 +640,20 @@ async def deep_search(
         - total_count: 总结果数
         - sources: 结果来源统计（headlines/site_search）
         - platforms_searched: 搜索的平台列表
+        - language_filter: 使用的语言过滤
 
     Examples:
         用户："深度搜索关于AI的新闻"
         → deep_search(query="AI", mode="both")
 
+        用户："搜索德语新闻中关于Tesla的报道"
+        → deep_search(query="Tesla", language="de")
+
         用户："在Guardian上搜索climate change"
         → deep_search(query="climate change", platforms=["theguardian"], mode="site_search")
 
-        用户："搜索所有关于Tesla的新闻，包括网站"
-        → deep_search(query="Tesla", mode="both", include_url=True)
+        用户："搜索所有英语平台关于AI的新闻"
+        → deep_search(query="AI", language="en", mode="both")
     """
     from .services.search_service import DeepSearchService
     
@@ -648,6 +663,7 @@ async def deep_search(
         result = search_service.deep_search(
             query=query,
             platforms=platforms,
+            language=language,
             mode=mode,
             max_results=max_results,
             date_range=date_range,

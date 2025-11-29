@@ -173,6 +173,35 @@ class SiteSearchService:
         except Exception as e:
             logger.warning(f"Failed to load YAML config: {e}")
     
+    def _get_platform_languages(self) -> Dict[str, str]:
+        """Load platform language mappings from config.yaml"""
+        import yaml
+        from pathlib import Path
+        
+        config_path = Path(__file__).parent.parent.parent / "config" / "config.yaml"
+        if not config_path.exists():
+            return {}
+        
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                yaml_config = yaml.safe_load(f)
+            
+            languages = {}
+            for platform in yaml_config.get("platforms", []):
+                platform_id = platform.get("id")
+                language = platform.get("language")
+                if platform_id and language:
+                    languages[platform_id] = language
+            return languages
+        except Exception as e:
+            logger.warning(f"Failed to load platform languages: {e}")
+            return {}
+    
+    def get_platform_language(self, platform_id: str) -> Optional[str]:
+        """Get the language for a specific platform"""
+        languages = self._get_platform_languages()
+        return languages.get(platform_id)
+    
     def get_search_config(self, platform_id: str) -> Optional[Dict]:
         """Get search configuration for a platform"""
         # First check user config, then fall back to defaults
@@ -185,8 +214,17 @@ class SiteSearchService:
         config = self.get_search_config(platform_id)
         return config is not None and config.get("enabled", False)
     
-    def get_searchable_platforms(self) -> List[str]:
-        """Get list of platforms that support site search"""
+    def get_searchable_platforms(self, language: Optional[str] = None) -> List[str]:
+        """
+        Get list of platforms that support site search.
+        
+        Args:
+            language: Optional language filter (e.g., 'en', 'de', 'zh')
+                      If None, returns all searchable platforms
+        
+        Returns:
+            List of platform IDs that support search
+        """
         platforms = set()
         # Add hardcoded configs
         for platform_id in self.SEARCH_CONFIGS:
@@ -196,6 +234,12 @@ class SiteSearchService:
         for platform_id in self.config:
             if self.is_search_enabled(platform_id):
                 platforms.add(platform_id)
+        
+        # Filter by language if specified
+        if language:
+            languages = self._get_platform_languages()
+            platforms = {p for p in platforms if languages.get(p) == language}
+        
         return sorted(list(platforms))
     
     def search(
@@ -561,6 +605,7 @@ class DeepSearchService:
         self,
         query: str,
         platforms: Optional[List[str]] = None,
+        language: Optional[str] = None,
         mode: str = "both",
         max_results: int = 50,
         date_range: Optional[Dict[str, str]] = None,
@@ -572,6 +617,8 @@ class DeepSearchService:
         Args:
             query: Search query string
             platforms: List of platform IDs to search (None = all supported)
+            language: Language filter (e.g., 'en', 'de', 'zh', 'fr')
+                      If specified, only searches platforms in that language
             mode: Search mode:
                 - "headlines": Search cached RSS headlines only (fast)
                 - "site_search": Query site search functions only (thorough)
@@ -588,6 +635,7 @@ class DeepSearchService:
         results = {
             "query": query,
             "mode": mode,
+            "language": language,
             "headlines": [],
             "site_search": [],
             "combined": [],
@@ -596,16 +644,23 @@ class DeepSearchService:
                 "headline_count": 0,
                 "site_search_count": 0,
                 "platforms_searched": [],
+                "language_filter": language,
                 "search_time_seconds": 0
             }
         }
         
         # Determine which platforms to search
         if platforms is None:
-            # Default to searchable platforms for site search
-            site_search_platforms = self.site_search.get_searchable_platforms()
+            # Default to searchable platforms for site search, filtered by language
+            site_search_platforms = self.site_search.get_searchable_platforms(language=language)
         else:
+            # Filter provided platforms by search capability and language
             site_search_platforms = [p for p in platforms if self.site_search.is_search_enabled(p)]
+            if language:
+                site_search_platforms = [
+                    p for p in site_search_platforms 
+                    if self.site_search.get_platform_language(p) == language
+                ]
         
         # Search headlines (cached RSS data)
         if mode in ("headlines", "both"):
