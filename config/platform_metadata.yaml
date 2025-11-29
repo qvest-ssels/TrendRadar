@@ -111,6 +111,8 @@ platforms:
     type: "magazine"
     founded: 1947
     headquarters: "Hamburg"
+    paywall: true
+    paywall_type: "metered"  # metered, hard, soft
     
   tagesspiegel:
     homepage: "https://www.tagesspiegel.de"
@@ -120,6 +122,8 @@ platforms:
     type: "newspaper"
     founded: 1945
     headquarters: "Berlin"
+    paywall: true
+    paywall_type: "metered"
     
   heise:
     homepage: "https://www.heise.de"
@@ -129,6 +133,7 @@ platforms:
     type: "tech_news"
     founded: 1983
     headquarters: "Hanover"
+    paywall: false
 
   # ==================== UK/English Sources ====================
   theguardian:
@@ -140,6 +145,7 @@ platforms:
     founded: 1821
     headquarters: "London"
     political_leaning: "centre-left"
+    paywall: false  # Guardian uses donation model
     
   guardianau:
     homepage: "https://www.theguardian.com/australia-news"
@@ -171,6 +177,8 @@ platforms:
     founded: 1944
     headquarters: "Paris"
     political_leaning: "centre-left"
+    paywall: true
+    paywall_type: "metered"
 
   # ==================== Indian Sources ====================
   timesofindia:

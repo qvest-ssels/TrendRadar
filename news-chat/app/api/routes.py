@@ -6,9 +6,11 @@ Includes security measures for input validation, XSS prevention, and secret reda
 
 import json
 import logging
+import sys
+from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 
@@ -20,6 +22,15 @@ from ..utils.security import (
     redact_secrets,
     detect_secrets,
 )
+
+# Add parent path for mcp_server imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+try:
+    from mcp_server.utils.feature_flags import get_flags, init_flags_from_request, FeatureFlags
+    from mcp_server.utils.platform_metadata import has_paywall, get_paywalled_platforms
+    FEATURE_FLAGS_AVAILABLE = True
+except ImportError:
+    FEATURE_FLAGS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -214,4 +225,118 @@ async def status():
             "connected": mcp_ok,
             "url": mcp_client.base_url
         }
+    }
+
+
+# ==================== Feature Flags Endpoints ====================
+
+@router.get("/features")
+async def get_features(request: Request):
+    """
+    Get current feature flags status.
+    
+    Feature flags can be enabled via:
+    - URL params: ?feature_paywall_bypass=1
+    - Cookies: feature_paywall_bypass=1
+    - Environment: TRENDRADAR_FEATURE_PAYWALL_BYPASS=1
+    - Config file: feature_flags.paywall_bypass=true
+    """
+    if not FEATURE_FLAGS_AVAILABLE:
+        return {"error": "Feature flags module not available", "flags": {}}
+    
+    # Initialize flags from request
+    params = dict(request.query_params)
+    cookies = dict(request.cookies)
+    flags = init_flags_from_request(params, cookies)
+    
+    return {
+        "flags": {
+            flag: {
+                "enabled": flags.is_enabled(flag),
+                "source": flags.get_source(flag),
+            }
+            for flag in flags.get_enabled_flags()
+        },
+        "all": flags.get_all_flags_status()
+    }
+
+
+@router.post("/features/{flag_name}/enable")
+async def enable_feature(flag_name: str, response: Response):
+    """
+    Enable a feature flag via cookie.
+    
+    Sets a cookie that persists the feature flag for this session.
+    """
+    if not FEATURE_FLAGS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Feature flags not available")
+    
+    # Set cookie to enable feature
+    response.set_cookie(
+        key=f"feature_{flag_name}",
+        value="1",
+        max_age=86400 * 30,  # 30 days
+        httponly=True,
+        samesite="lax"
+    )
+    
+    return {"status": "enabled", "flag": flag_name}
+
+
+@router.post("/features/{flag_name}/disable")
+async def disable_feature(flag_name: str, response: Response):
+    """Disable a feature flag by removing the cookie."""
+    if not FEATURE_FLAGS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Feature flags not available")
+    
+    response.delete_cookie(key=f"feature_{flag_name}")
+    return {"status": "disabled", "flag": flag_name}
+
+
+@router.get("/paywalled-sources")
+async def get_paywalled_sources():
+    """Get list of sources with paywalls."""
+    if not FEATURE_FLAGS_AVAILABLE:
+        return {"sources": []}
+    
+    paywalled = get_paywalled_platforms()
+    return {
+        "sources": [
+            {
+                "id": pid,
+                "homepage": meta.get("homepage"),
+                "paywall_type": meta.get("paywall_type", "unknown"),
+                "country": meta.get("country"),
+            }
+            for pid, meta in paywalled.items()
+        ]
+    }
+
+
+@router.get("/archive-url")
+async def get_archive_url(url: str, request: Request):
+    """
+    Get archive.is URL for bypassing paywall.
+    
+    Only available when paywall_bypass feature is enabled.
+    """
+    if not FEATURE_FLAGS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Feature flags not available")
+    
+    # Check if feature is enabled
+    params = dict(request.query_params)
+    cookies = dict(request.cookies)
+    flags = init_flags_from_request(params, cookies)
+    
+    if not flags.is_enabled("paywall_bypass"):
+        raise HTTPException(
+            status_code=403, 
+            detail="Paywall bypass feature not enabled. Use ?feature_paywall_bypass=1 or enable via /features/paywall_bypass/enable"
+        )
+    
+    return {
+        "original_url": url,
+        "archive_url": FeatureFlags.get_archive_url(url),
+        "archive_newest": FeatureFlags.get_archive_newest_url(url),
+        "archive_search": FeatureFlags.get_archive_search_url(url),
     }

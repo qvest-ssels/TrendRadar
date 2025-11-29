@@ -3,6 +3,18 @@ app:
   show_version_update: true # 控制显示版本更新提示，如果 false，则不接受新版本提示
   timezone: "Europe/Berlin" # 时区设置，支持 pytz 时区名称，如 "UTC", "America/New_York", "Europe/London", "Europe/Paris" (UTC+1), "Europe/Berlin" (UTC+1)
 
+# 🔒 Feature Flags (Premium Features)
+# Enable experimental or premium features
+# Can also be enabled via:
+#   - Environment: TRENDRADAR_FEATURE_PAYWALL_BYPASS=1
+#   - URL param: ?feature_paywall_bypass=1
+#   - Cookie: feature_paywall_bypass=1
+feature_flags:
+  paywall_bypass: false      # Use archive.is to bypass paywalled content
+  premium_sources: false     # Access to premium news sources
+  advanced_search: false     # Enable advanced search operators
+  debug_mode: false          # Enable verbose debugging output
+
 crawler:
   request_interval: 1000 # 请求间隔(毫秒)
   enable_crawler: true # 是否启用爬取新闻功能，如果 false，则直接停止程序
