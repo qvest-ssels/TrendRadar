@@ -460,7 +460,10 @@
                         'Content-Type': 'application/json',
                         'Accept': 'text/event-stream'
                     },
-                    body: JSON.stringify({ message })
+                    body: JSON.stringify({ 
+                        messages: [{ role: 'user', content: message }],
+                        stream: true
+                    })
                 });
                 
                 if (!response.ok) {
