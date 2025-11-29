@@ -21,6 +21,13 @@ import pytz
 import requests
 import yaml
 
+# SQLite data layer (optional)
+try:
+    from mcp_server.data import DataStore, HeadlineItem, CrawlResult
+    SQLITE_AVAILABLE = True
+except ImportError:
+    SQLITE_AVAILABLE = False
+
 
 VERSION = "3.3.0"
 
@@ -816,8 +823,18 @@ class DataFetcher:
 
 
 # === 数据处理 ===
-def save_titles_to_file(results: Dict, id_to_name: Dict, failed_ids: List) -> str:
-    """保存标题到文件（同时保存txt和json格式）"""
+def save_titles_to_file(results: Dict, id_to_name: Dict, failed_ids: List, sync_to_sqlite: bool = False) -> str:
+    """保存标题到文件（同时保存txt和json格式）
+    
+    Args:
+        results: 爬取结果
+        id_to_name: 平台ID到名称的映射
+        failed_ids: 失败的平台ID列表
+        sync_to_sqlite: 是否同步到SQLite数据库（默认False）
+    
+    Returns:
+        保存的txt文件路径
+    """
     timestamp = format_time_filename()
     txt_file_path = get_output_path("txt", f"{timestamp}.txt")
     json_file_path = get_output_path("json", f"{timestamp}.json")
@@ -918,7 +935,60 @@ def save_titles_to_file(results: Dict, id_to_name: Dict, failed_ids: List) -> st
     with open(json_file_path, "w", encoding="utf-8") as f:
         json.dump(json_data, f, ensure_ascii=False, indent=2)
 
+    # Sync to SQLite if requested and available
+    if sync_to_sqlite and SQLITE_AVAILABLE:
+        try:
+            _sync_to_sqlite(json_data, failed_ids)
+        except Exception as e:
+            print(f"⚠️  SQLite sync failed (data still saved to files): {e}")
+
     return txt_file_path
+
+
+def _sync_to_sqlite(json_data: dict, failed_ids: List[str]) -> None:
+    """Sync crawl data to SQLite database for full-text search."""
+    metadata = json_data.get("metadata", {})
+    platforms_data = json_data.get("platforms", {})
+    
+    # Parse crawl time
+    crawl_time_str = metadata.get("crawl_time", "")
+    try:
+        crawl_time = datetime.fromisoformat(crawl_time_str)
+    except (ValueError, TypeError):
+        crawl_time = datetime.now()
+    
+    # Build CrawlResult
+    platforms = {}
+    for platform_id, platform_info in platforms_data.items():
+        items = []
+        for item in platform_info.get("items", []):
+            headline = HeadlineItem(
+                title=item.get("title", ""),
+                url=item.get("url", ""),
+                platform_id=platform_id,
+                platform_name=platform_info.get("name", platform_id),
+                rank=item.get("rank", 0),
+                language=platform_info.get("language", "en"),
+                mobile_url=item.get("mobile_url", "")
+            )
+            items.append(headline)
+        if items:
+            platforms[platform_id] = items
+    
+    result = CrawlResult(
+        crawl_time=crawl_time,
+        platforms=platforms,
+        timezone=metadata.get("timezone", "UTC"),
+        version=metadata.get("version", ""),
+        failed_platforms=failed_ids or []
+    )
+    
+    # Store to SQLite (JSON already saved, so save_json=False)
+    store = DataStore()
+    session_id = store.store_crawl_result(result, save_json=False)
+    
+    total_headlines = sum(len(items) for items in platforms.values())
+    print(f"📊 Synced to SQLite: {total_headlines} headlines (session #{session_id})")
 
 
 def get_platform_language(platform_id: str) -> str:
@@ -4615,8 +4685,9 @@ class NewsAnalyzer:
         },
     }
 
-    def __init__(self, debug_mode=False):
+    def __init__(self, debug_mode=False, sync_sqlite=False):
         self.debug_mode = debug_mode
+        self.sync_sqlite = sync_sqlite
         self.request_interval = CONFIG["REQUEST_INTERVAL"]
         self.report_mode = CONFIG["REPORT_MODE"]
         self.rank_threshold = CONFIG["RANK_THRESHOLD"]
@@ -4629,6 +4700,9 @@ class NewsAnalyzer:
 
         if self.is_github_actions:
             self._check_version_update()
+        
+        if self.sync_sqlite:
+            print("📊 SQLite sync enabled")
 
     def _detect_docker_environment(self) -> bool:
         """检测是否运行在 Docker 容器中"""
@@ -4979,7 +5053,7 @@ class NewsAnalyzer:
             ids, self.request_interval
         )
 
-        title_file = save_titles_to_file(results, id_to_name, failed_ids)
+        title_file = save_titles_to_file(results, id_to_name, failed_ids, sync_to_sqlite=self.sync_sqlite)
         print(f"标题已保存到: {title_file}")
 
         return results, id_to_name, failed_ids
@@ -4992,7 +5066,8 @@ class NewsAnalyzer:
         current_platform_ids = [platform["id"] for platform in CONFIG["PLATFORMS"]]
 
         new_titles = detect_latest_new_titles(current_platform_ids)
-        time_info = Path(save_titles_to_file(results, id_to_name, failed_ids)).stem
+        # Don't sync here - already synced in _crawl_data
+        time_info = Path(save_titles_to_file(results, id_to_name, failed_ids, sync_to_sqlite=False)).stem
         # Load default Chinese frequency words for mode execution
         word_groups, filter_words = load_frequency_words(language="zh")
 
@@ -5224,6 +5299,56 @@ class NewsAnalyzer:
                 import traceback
                 traceback.print_exc()
 
+    def crawl_only(self):
+        """Crawl-only mode - fetch data and save without analysis or notifications.
+        
+        Useful for:
+        - Building up the database with historical data
+        - Running crawls on a schedule without notifications
+        - Testing crawl reliability without side effects
+        """
+        print("🕷️  Crawl-Only Mode - Fetching data without analysis")
+        print("=" * 60)
+
+        try:
+            self._initialize_and_check_config()
+
+            results, id_to_name, failed_ids = self._crawl_data()
+
+            print("\n📊 Crawl Results:")
+            print("-" * 40)
+
+            total_items = 0
+            for platform_id, items in results.items():
+                platform_name = id_to_name.get(platform_id, platform_id)
+                item_count = len(items)
+                total_items += item_count
+                status = "✅" if item_count > 0 else "⚠️"
+                print(f"  {status} {platform_name}: {item_count} items")
+
+            print("-" * 40)
+            print(f"📈 Total: {total_items} items from {len(results)} platforms")
+
+            if failed_ids:
+                print(f"❌ Failed: {', '.join(failed_ids)}")
+
+            # Show sync status
+            if self.sync_sqlite and SQLITE_AVAILABLE:
+                try:
+                    store = DataStore()
+                    stats = store.db.stats()
+                    print(f"\n📊 Database: {stats['headlines_count']} total headlines, {stats['urls_count']} unique URLs")
+                except Exception as e:
+                    print(f"⚠️  Could not get database stats: {e}")
+
+            print("\n✅ Crawl completed!")
+
+        except Exception as e:
+            print(f"❌ Crawl failed: {e}")
+            if self.debug_mode:
+                import traceback
+                traceback.print_exc()
+
 
 def main():
     parser = argparse.ArgumentParser(description="TrendRadar - News Trend Analysis Tool")
@@ -5232,8 +5357,26 @@ def main():
                        help="Test crawling for specific platform or all platforms (default: all)")
     parser.add_argument("--quick-test", action="store_true",
                        help="Run quick test mode - crawl once and exit")
+    
+    # SQLite sync options
+    parser.add_argument("--sync-sqlite", action="store_true",
+                       help="Sync crawl data to SQLite database for full-text search")
+    parser.add_argument("--no-sync", action="store_true",
+                       help="Disable SQLite sync even if enabled by default")
+    parser.add_argument("--crawl-only", action="store_true",
+                       help="Only crawl and save files, skip analysis and notifications")
 
     args = parser.parse_args()
+    
+    # Determine sync behavior
+    # Default: sync if SQLITE_AVAILABLE, unless --no-sync
+    sync_sqlite = SQLITE_AVAILABLE and not args.no_sync
+    if args.sync_sqlite:
+        sync_sqlite = True
+        if not SQLITE_AVAILABLE:
+            print("⚠️  --sync-sqlite requested but mcp_server.data module not available")
+            print("   Install with: pip install -e .")
+            sync_sqlite = False
 
     try:
         if args.test_crawl:
@@ -5242,11 +5385,15 @@ def main():
             analyzer.test_crawl(args.test_crawl)
         elif args.quick_test:
             # Quick test mode
-            analyzer = NewsAnalyzer(debug_mode=args.debug)
+            analyzer = NewsAnalyzer(debug_mode=args.debug, sync_sqlite=sync_sqlite)
             analyzer.quick_test()
+        elif args.crawl_only:
+            # Crawl-only mode - just fetch and save data
+            analyzer = NewsAnalyzer(debug_mode=args.debug, sync_sqlite=sync_sqlite)
+            analyzer.crawl_only()
         else:
             # Normal operation
-            analyzer = NewsAnalyzer(debug_mode=args.debug)
+            analyzer = NewsAnalyzer(debug_mode=args.debug, sync_sqlite=sync_sqlite)
             analyzer.run()
     except FileNotFoundError as e:
         print(f"❌ 配置文件错误: {e}")

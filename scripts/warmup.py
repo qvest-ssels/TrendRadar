@@ -139,7 +139,7 @@ def run_warmup_crawl(platforms: list[str], timeout: int = 300) -> bool:
     sys.path.insert(0, str(get_project_root()))
     
     try:
-        from main import DataFetcher, CONFIG, save_titles_to_file, ensure_directory_exists
+        from main import DataFetcher, CONFIG, save_titles_to_file, ensure_directory_exists, SQLITE_AVAILABLE
         
         # Filter platforms to only those in the warmup list
         all_platforms = CONFIG.get("PLATFORMS", [])
@@ -174,9 +174,9 @@ def run_warmup_crawl(platforms: list[str], timeout: int = 300) -> bool:
             request_interval=CONFIG.get("REQUEST_INTERVAL", 1000)
         )
         
-        # Save results to file
+        # Save results to file (with SQLite sync if available)
         if results:
-            title_file = save_titles_to_file(results, id_to_name, failed_ids)
+            title_file = save_titles_to_file(results, id_to_name, failed_ids, sync_to_sqlite=SQLITE_AVAILABLE)
             print(f"\n📁 Data saved to: {title_file}")
         
         # Report summary
