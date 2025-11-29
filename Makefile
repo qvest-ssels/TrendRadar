@@ -224,8 +224,7 @@ start-news-chat:
 		echo "News Chat is already running (PID: `cat news-chat/.news_chat.pid`)"; \
 		exit 1; \
 	fi
-	@cd news-chat && VIRTUAL_ENV="$$(pwd)/.venv" uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 > .news_chat.log 2>&1 & \
-	echo $$! > .news_chat.pid
+	@(cd news-chat && VIRTUAL_ENV="$$(pwd)/.venv" $(UV) run uvicorn app.main:app --host 127.0.0.1 --port 8000 > .news_chat.log 2>&1) & echo $$! > news-chat/.news_chat.pid
 	@sleep 2
 	@echo "News Chat started (PID: `cat news-chat/.news_chat.pid`)"
 	@echo "Web UI: http://localhost:8000"
