@@ -304,24 +304,55 @@ async def call_tool(tool_name: str, request: ToolRequest):
         
         elif tool_name == "get_news_by_date":
             result = await get_news_by_date.fn(
-                date=args.get("date", "today"),
-                platform=args.get("platform"),
-                limit=args.get("limit", 50)
+                date_query=args.get("date", args.get("date_query", "today")),
+                platforms=args.get("platforms", args.get("platform")),
+                limit=args.get("limit", 50),
+                include_url=args.get("include_url", True)
             )
             result = filter_archive_urls(result)
         
         elif tool_name == "analyze_topic_trend":
+            # Support both 'days' shorthand and 'date_range' object
+            date_range = args.get("date_range")
+            if not date_range and args.get("days"):
+                # Convert days to date_range
+                from datetime import datetime, timedelta
+                end = datetime.now()
+                start = end - timedelta(days=int(args.get("days")))
+                date_range = {
+                    "start": start.strftime("%Y-%m-%d"),
+                    "end": end.strftime("%Y-%m-%d")
+                }
+            
             result = await analyze_topic_trend.fn(
                 topic=args.get("topic", ""),
-                date_range=args.get("date_range")
+                analysis_type=args.get("analysis_type", "trend"),
+                date_range=date_range,
+                granularity=args.get("granularity", "day")
             )
         
         elif tool_name == "analyze_sentiment":
-            result = await analyze_sentiment.fn(
-                topic=args.get("topic"),
-                date_range=args.get("date_range"),
-                platforms=args.get("platforms")
-            )
+            # Support both 'headlines' list and topic-based analysis
+            headlines = args.get("headlines")
+            if headlines:
+                # Direct sentiment analysis of provided headlines
+                # Return a simple structure for AI to interpret
+                result = json.dumps({
+                    "success": True,
+                    "mode": "direct_headlines",
+                    "headlines": headlines,
+                    "count": len(headlines),
+                    "note": "Headlines provided for sentiment analysis. Analyze these for positive/negative/neutral sentiment."
+                }, ensure_ascii=False)
+            else:
+                result = await analyze_sentiment.fn(
+                    topic=args.get("topic"),
+                    date_range=args.get("date_range"),
+                    platforms=args.get("platforms"),
+                    limit=args.get("limit", 50),
+                    sort_by_weight=args.get("sort_by_weight", True),
+                    include_url=args.get("include_url", False)
+                )
         
         elif tool_name == "search_news":
             result = await search_news.fn(
@@ -333,10 +364,17 @@ async def call_tool(tool_name: str, request: ToolRequest):
             result = filter_archive_urls(result)
         
         elif tool_name == "generate_summary_report":
+            # Support both old (date) and new (report_type/date_range) APIs
+            report_type = args.get("report_type", "daily")
+            date_range = args.get("date_range")
+            
+            # If date is provided, convert to date_range format
+            if not date_range and args.get("date"):
+                date_range = {"start": args.get("date"), "end": args.get("date")}
+            
             result = await generate_summary_report.fn(
-                date=args.get("date", "today"),
-                include_sentiment=args.get("include_sentiment", True),
-                max_topics=args.get("max_topics", 10)
+                report_type=report_type,
+                date_range=date_range
             )
         
         elif tool_name == "get_woodchuck_pages":
@@ -345,6 +383,39 @@ async def call_tool(tool_name: str, request: ToolRequest):
                 region=args.get("region"),
                 language=args.get("language")
             )
+        
+        elif tool_name == "search_headlines_fts":
+            # FTS5 full-text search via data store
+            store = get_data_store()
+            query = args.get("query", args.get("q", ""))
+            platforms = args.get("platforms")
+            if isinstance(platforms, str):
+                platforms = platforms.split(",")
+            
+            results = store.search_headlines(
+                query=query,
+                platforms=platforms,
+                start_date=args.get("start_date"),
+                end_date=args.get("end_date"),
+                limit=args.get("limit", 50)
+            )
+            
+            # Convert datetime objects to strings for JSON serialization
+            serializable_results = []
+            for item in results:
+                clean_item = {}
+                for k, v in item.items():
+                    if hasattr(v, 'isoformat'):  # datetime objects
+                        clean_item[k] = v.isoformat()
+                    else:
+                        clean_item[k] = v
+                serializable_results.append(clean_item)
+            
+            result = json.dumps({
+                "query": query,
+                "count": len(serializable_results),
+                "results": serializable_results
+            }, ensure_ascii=False)
         
         else:
             raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found")
