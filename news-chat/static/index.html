@@ -160,7 +160,8 @@
                     type="button"
                     id="stop-button"
                     onclick="stopStreaming()"
-                    class="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors hidden"
+                    disabled
+                    class="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-red-500"
                 >
                     Stop
                 </button>
@@ -410,12 +411,11 @@
             }
         }
         
-        // Show/hide buttons based on streaming state
+        // Enable/disable buttons based on streaming state
         function updateButtonState(streaming) {
             isStreaming = streaming;
             sendButton.disabled = streaming;
-            sendButton.classList.toggle('hidden', streaming);
-            stopButton.classList.toggle('hidden', !streaming);
+            stopButton.disabled = !streaming;
         }
         
         // Send message
