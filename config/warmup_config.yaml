@@ -1,0 +1,64 @@
+# Warmup Configuration
+# Used for initial cache population when output directory is empty
+# This runs a minimal crawl to populate basic data for the chat interface
+
+warmup:
+  # Enable warmup on start (only runs if no cached output exists for today)
+  enabled: true
+  
+  # Number of platforms to crawl during warmup (top N from platforms list)
+  # Set to 0 to crawl all platforms
+  max_platforms: 5
+  
+  # Skip warmup if output files exist for today
+  skip_if_cached: true
+  
+  # Timeout for warmup crawl (seconds)
+  timeout: 300
+
+# Generic search terms for warming up search functionality
+# These are common topics that will have results across most news sources
+search_terms:
+  # Technology & Innovation
+  - "AI"
+  - "technology"
+  - "software"
+  - "startup"
+  - "innovation"
+  
+  # Business & Economy
+  - "economy"
+  - "market"
+  - "business"
+  
+  # Science
+  - "science"
+  - "research"
+  - "climate"
+  
+  # Politics & World
+  - "politics"
+  - "election"
+  - "government"
+  
+  # German-specific (for German sources)
+  - "Deutschland"
+  - "Berlin"
+  - "Bundesregierung"
+  
+  # Chinese-specific (for Chinese sources)
+  - "中国"
+  - "科技"
+  - "经济"
+
+# Priority platforms for warmup (crawled first)
+# These are reliable sources with good RSS/API support
+priority_platforms:
+  - "spiegel"
+  - "theguardian"
+  - "heise"
+  - "slashdot"
+  - "zhihu"
+  - "weibo"
+  - "toutiao"
+  - "baidu"

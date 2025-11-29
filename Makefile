@@ -1,4 +1,4 @@
-.PHONY: test test-verbose clean help start-server stop-server server-status start-rest-api stop-rest-api start-ollama stop-ollama ollama-status start-news-chat stop-news-chat news-chat-status start-woodchuck-server stop-woodchuck-server woodchuck-status generate-woodchuck start-all stop-all status
+.PHONY: test test-verbose clean help start-server stop-server server-status start-rest-api stop-rest-api start-ollama stop-ollama ollama-status start-news-chat stop-news-chat news-chat-status start-woodchuck-server stop-woodchuck-server woodchuck-status generate-woodchuck start-all start-all-warmup stop-all status check-cache warmup warmup-force warmup-list
 
 # Variables
 UV := uv
@@ -42,12 +42,19 @@ help:
 	@echo "  woodchuck-status         - Check Woodchuck News status"
 	@echo "  generate-woodchuck       - Regenerate static site"
 	@echo ""
+	@echo "  === Warmup & Cache ==="
+	@echo "  check-cache    - Check if cached output exists for today"
+	@echo "  warmup         - Run warmup crawl (only if no cache)"
+	@echo "  warmup-force   - Force warmup crawl (even with cache)"
+	@echo "  warmup-list    - List platforms for warmup"
+	@echo ""
 	@echo "  === Convenience ==="
-	@echo "  start-all      - Start all services (REST API + News Chat)"
-	@echo "  stop-all       - Stop all services"
-	@echo "  status         - Show status of all services"
-	@echo "  clean          - Clean up cache files"
-	@echo "  help           - Show this help message"
+	@echo "  start-all        - Start all services (REST API + News Chat)"
+	@echo "  start-all-warmup - Start all services with warmup"
+	@echo "  stop-all         - Stop all services"
+	@echo "  status           - Show status of all services"
+	@echo "  clean            - Clean up cache files"
+	@echo "  help             - Show this help message"
 
 # Run tests
 test:
@@ -304,10 +311,42 @@ woodchuck-status:
 		fi; \
 	fi
 
+# ==================== Warmup & Cache ====================
+
+# Check if cached output exists for today
+check-cache:
+	@$(UV) run python scripts/warmup.py --check
+
+# Run warmup crawl (only if no cache exists)
+warmup:
+	@echo "🔥 Running warmup..."
+	@$(UV) run python scripts/warmup.py
+
+# Force warmup crawl (even if cache exists)
+warmup-force:
+	@echo "🔥 Running forced warmup..."
+	@$(UV) run python scripts/warmup.py --force
+
+# List platforms that will be crawled during warmup
+warmup-list:
+	@$(UV) run python scripts/warmup.py --list-platforms
+
 # Start all services (Ollama + REST API + News Chat)
 start-all: start-ollama start-rest-api start-news-chat
 	@echo ""
 	@echo "All services started!"
+	@echo "  Ollama: http://localhost:11434"
+	@echo "  REST API: http://localhost:3334"
+	@echo "  News Chat: http://localhost:8000"
+
+# Start all services with warmup (if no cache exists)
+start-all-warmup: start-ollama start-rest-api
+	@echo ""
+	@echo "🔥 Checking cache and running warmup if needed..."
+	@$(UV) run python scripts/warmup.py || true
+	@$(MAKE) start-news-chat
+	@echo ""
+	@echo "All services started with warmup!"
 	@echo "  Ollama: http://localhost:11434"
 	@echo "  REST API: http://localhost:3334"
 	@echo "  News Chat: http://localhost:8000"
