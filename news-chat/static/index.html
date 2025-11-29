@@ -156,6 +156,14 @@
                 >
                     Send
                 </button>
+                <button 
+                    type="button"
+                    id="stop-button"
+                    onclick="stopStreaming()"
+                    class="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors hidden"
+                >
+                    Stop
+                </button>
             </form>
             <div class="mt-2 flex gap-2 text-xs text-gray-500">
                 <span>Suggestions:</span>
@@ -174,12 +182,14 @@
         // Chat state
         let messages = [];
         let isStreaming = false;
+        let abortController = null;
         
         // DOM elements
         const chatMessages = document.getElementById('chat-messages');
         const chatForm = document.getElementById('chat-form');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
+        const stopButton = document.getElementById('stop-button');
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
         
@@ -238,44 +248,55 @@
             return div.innerHTML;
         }
         
+        // Safely escape URL for href attribute
+        function escapeUrl(url) {
+            // Only allow http/https URLs
+            if (!url.match(/^https?:\/\//i)) {
+                return '#';
+            }
+            // Basic URL encoding for special chars
+            return url.replace(/"/g, '%22').replace(/'/g, '%27').replace(/</g, '%3C').replace(/>/g, '%3E');
+        }
+        
         // Format content with basic markdown and clickable links (XSS-safe)
         function formatContent(content) {
-            // First, escape any HTML to prevent XSS
-            let escaped = escapeHtml(content);
+            // Process markdown links BEFORE escaping (so we can extract URLs)
+            // Use placeholders to protect links during HTML escaping
+            const links = [];
+            let processed = content;
             
-            // Convert markdown links [text](url) to clickable links
-            // External links get target="_blank" and security attributes
-            escaped = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (match, text, url) => {
-                // Validate URL to prevent javascript: and data: attacks
-                if (!url.match(/^https?:\/\//i)) {
-                    return escapeHtml(text); // Just show text if URL is suspicious
-                }
-                return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)} ↗</a>`;
+            // Extract and replace markdown links [text](url) with placeholders
+            processed = processed.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (match, text, url) => {
+                const idx = links.length;
+                links.push({ text: text, url: url, external: true });
+                return `__LINK_${idx}__`;
             });
             
-            // Convert internal links (relative paths like /source/platform/)
-            escaped = escaped.replace(/\[([^\]]+)\]\(\/([^)]+)\)/g, (match, text, path) => {
-                // Validate path - only allow alphanumeric, slashes, hyphens, underscores
-                if (!path.match(/^[\w\-\/]+$/)) {
-                    return escapeHtml(text);
-                }
-                return `<a href="/${escapeHtml(path)}">${escapeHtml(text)}</a>`;
-            });
-            
-            // Auto-link bare URLs that aren't already linked
-            escaped = escaped.replace(/(?<![">])(https?:\/\/[^\s<]+)/g, (url) => {
-                if (!url.match(/^https?:\/\//i)) {
-                    return escapeHtml(url);
-                }
-                // Truncate long URLs for display
+            // Extract bare URLs
+            processed = processed.replace(/(^|[^"\]>])(https?:\/\/[^\s<\[\]]+)/g, (match, prefix, url) => {
+                const idx = links.length;
                 const displayUrl = url.length > 50 ? url.substring(0, 47) + '...' : url;
-                return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(displayUrl)} ↗</a>`;
+                links.push({ text: displayUrl, url: url, external: true });
+                return `${prefix}__LINK_${idx}__`;
             });
             
-            // Format markdown tables (before other formatting)
+            // Now escape HTML
+            let escaped = escapeHtml(processed);
+            
+            // Restore links with proper HTML
+            links.forEach((link, idx) => {
+                const safeUrl = escapeUrl(link.url);
+                const safeText = escapeHtml(link.text);
+                const html = link.external 
+                    ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeText} ↗</a>`
+                    : `<a href="${safeUrl}">${safeText}</a>`;
+                escaped = escaped.replace(`__LINK_${idx}__`, html);
+            });
+            
+            // Format markdown tables
             escaped = formatMarkdownTable(escaped);
             
-            // Format markdown (after escaping, so we work with safe content)
+            // Format other markdown
             return escaped
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -381,13 +402,31 @@
             if (indicator) indicator.remove();
         }
         
+        // Stop streaming
+        function stopStreaming() {
+            if (abortController) {
+                abortController.abort();
+                abortController = null;
+            }
+        }
+        
+        // Show/hide buttons based on streaming state
+        function updateButtonState(streaming) {
+            isStreaming = streaming;
+            sendButton.disabled = streaming;
+            sendButton.classList.toggle('hidden', streaming);
+            stopButton.classList.toggle('hidden', !streaming);
+        }
+        
         // Send message
         async function sendMessage(userMessage) {
             if (isStreaming || !userMessage.trim()) return;
             
-            isStreaming = true;
-            sendButton.disabled = true;
+            updateButtonState(true);
             userInput.value = '';
+            
+            // Create abort controller for this request
+            abortController = new AbortController();
             
             // Add user message
             messages.push({ role: 'user', content: userMessage });
@@ -403,7 +442,8 @@
                     body: JSON.stringify({
                         messages: messages,
                         stream: true
-                    })
+                    }),
+                    signal: abortController.signal
                 });
                 
                 removeTypingIndicator();
@@ -417,42 +457,55 @@
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n');
-                    
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const data = line.slice(6);
-                            if (data === '[DONE]') continue;
-                            
-                            try {
-                                const parsed = JSON.parse(data);
-                                if (parsed.content) {
-                                    fullContent += parsed.content;
-                                    contentDiv.innerHTML = formatContent(fullContent);
-                                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6);
+                                if (data === '[DONE]') continue;
+                                
+                                try {
+                                    const parsed = JSON.parse(data);
+                                    if (parsed.content) {
+                                        fullContent += parsed.content;
+                                        contentDiv.innerHTML = formatContent(fullContent);
+                                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                                    }
+                                } catch (e) {
+                                    // Ignore parse errors
                                 }
-                            } catch (e) {
-                                // Ignore parse errors
                             }
                         }
+                    }
+                } catch (e) {
+                    if (e.name === 'AbortError') {
+                        fullContent += '\n\n*[Stopped]*';
+                        contentDiv.innerHTML = formatContent(fullContent);
+                    } else {
+                        throw e;
                     }
                 }
                 
                 // Save assistant message
-                messages.push({ role: 'assistant', content: fullContent });
+                if (fullContent) {
+                    messages.push({ role: 'assistant', content: fullContent });
+                }
                 
             } catch (e) {
                 removeTypingIndicator();
-                addMessage('assistant', `Error: ${e.message}`);
+                if (e.name !== 'AbortError') {
+                    addMessage('assistant', `Error: ${e.message}`);
+                }
             }
             
-            isStreaming = false;
-            sendButton.disabled = false;
+            abortController = null;
+            updateButtonState(false);
             userInput.focus();
         }
         
