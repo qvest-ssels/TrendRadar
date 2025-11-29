@@ -149,3 +149,4 @@ output/
 _image/
 config/config.yaml
 uv.lock
+libretranslate-upstream/

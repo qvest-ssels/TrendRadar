@@ -330,3 +330,34 @@ platforms:
       type: "url_pattern"
       search_url: "https://www.koreaherald.com/search/index.php?q={query}"
       rate_limit: 2.0
+  - id: "elpais"
+    name: "El País"
+    language: "es"
+    crawler:
+      type: "rss"
+      url_template: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada"
+      sub_feeds:
+        - name: "Internacional"
+          url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/internacional/portada"
+        - name: "Economía"
+          url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/economia/portada"
+        - name: "Tecnología"
+          url: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/tecnologia/portada"
+    search:
+      enabled: true
+      type: "url_pattern"
+      search_url: "https://elpais.com/buscador/?qt={query}"
+      requires_js: true
+      rate_limit: 2.0
+  - id: "elpais_mexico"
+    name: "El País México"
+    language: "es"
+    crawler:
+      type: "rss"
+      url_template: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/mexico/portada"
+    search:
+      enabled: true
+      type: "url_pattern"
+      search_url: "https://elpais.com/mexico/buscador/?qt={query}"
+      requires_js: true
+      rate_limit: 2.0

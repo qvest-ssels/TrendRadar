@@ -1,0 +1,38 @@
+# LibreTranslate - Local Translation Service
+# Self-hosted, offline capable machine translation API
+# https://github.com/LibreTranslate/LibreTranslate
+#
+# NOTE: For full setup, use the upstream repo at ../libretranslate-upstream/
+# This is a simplified reference config.
+
+services:
+  libretranslate:
+    container_name: libretranslate
+    image: libretranslate/libretranslate:latest
+    restart: unless-stopped
+    
+    ports:
+      - "5555:5000"  # Use 5555 externally (5000 conflicts with AirPlay on macOS)
+    
+    healthcheck:
+      test: ['CMD-SHELL', './venv/bin/python scripts/healthcheck.py']
+      interval: 10s
+      timeout: 4s
+      retries: 4
+      start_period: 120s  # Models take time to download on first run
+    
+    # Enable logging in docker compose logs (required for logs to show)
+    tty: true
+    
+    environment:
+      # Load only specific languages to save memory and startup time
+      # Common languages for news: English, German, Chinese, French, Spanish
+      - LT_LOAD_ONLY=en,de,zh,fr,es
+    
+    volumes:
+      # Persist downloaded language models
+      - libretranslate-models:/home/libretranslate/.local:rw
+
+volumes:
+  libretranslate-models:
+    name: libretranslate-models

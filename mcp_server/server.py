@@ -765,6 +765,259 @@ async def meta_search(
         }, ensure_ascii=False, indent=2)
 
 
+# ==================== 翻译工具（可选功能）====================
+
+@mcp.tool
+async def translate_text(
+    text: str,
+    target: str = "en",
+    source: str = "auto"
+) -> str:
+    """
+    Translate text to another language using LibreTranslate (local service).
+    
+    This is an optional feature that requires LibreTranslate to be running locally.
+    Start it with: cd libretranslate-upstream && docker compose up -d
+    
+    Args:
+        text: Text to translate (single text or short paragraph)
+        target: Target language code. Available:
+                - en: English
+                - de: German (Deutsch)
+                - zh-Hans: Chinese Simplified (中文简体)
+                - fr: French (Français)
+                - es: Spanish (Español)
+        source: Source language code, or "auto" for automatic detection (default)
+    
+    Returns:
+        JSON with translation result:
+        - success: Whether translation succeeded
+        - original: Original text
+        - translated: Translated text
+        - source_language: Detected/specified source language
+        - target_language: Target language
+        - service_available: Whether translation service is running
+    
+    Examples:
+        Translate German headline to English:
+        → translate_text(text="Bundeskanzler kündigt neue Maßnahmen an", target="en")
+        
+        Translate English to Chinese:
+        → translate_text(text="Breaking news from around the world", target="zh-Hans")
+        
+        Translate with known source language (faster):
+        → translate_text(text="Hola mundo", source="es", target="en")
+    """
+    from .services.translation_service import get_translation_service
+    
+    try:
+        service = get_translation_service()
+        
+        if not service.is_available():
+            return json.dumps({
+                "success": False,
+                "service_available": False,
+                "error": "Translation service not available. Start LibreTranslate with: cd libretranslate-upstream && docker compose up -d",
+                "original": text
+            }, ensure_ascii=False, indent=2)
+        
+        translated = service.translate(text, source=source, target=target)
+        
+        if translated:
+            # Get detected language if auto
+            detected = None
+            if source == "auto":
+                detection = service.detect_language(text)
+                if detection:
+                    detected = detection.get('language')
+            
+            return json.dumps({
+                "success": True,
+                "service_available": True,
+                "original": text,
+                "translated": translated,
+                "source_language": detected or source,
+                "target_language": target
+            }, ensure_ascii=False, indent=2)
+        else:
+            return json.dumps({
+                "success": False,
+                "service_available": True,
+                "error": "Translation failed",
+                "original": text
+            }, ensure_ascii=False, indent=2)
+            
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e),
+            "original": text
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def get_translation_languages() -> str:
+    """
+    Get available languages for translation.
+    
+    Returns the list of supported languages and which translation pairs are available.
+    Requires LibreTranslate to be running locally.
+    
+    Returns:
+        JSON with available languages:
+        - success: Whether service is available
+        - languages: List of available languages with:
+            - code: Language code (e.g., "en", "de", "zh-Hans")
+            - name: Language name (e.g., "English", "German")
+            - targets: Available target languages
+        - service_available: Whether translation service is running
+    
+    Examples:
+        Check what languages are available:
+        → get_translation_languages()
+    """
+    from .services.translation_service import get_translation_service
+    
+    try:
+        service = get_translation_service()
+        
+        if not service.is_available():
+            return json.dumps({
+                "success": False,
+                "service_available": False,
+                "error": "Translation service not available. Start LibreTranslate with: cd libretranslate-upstream && docker compose up -d",
+                "languages": []
+            }, ensure_ascii=False, indent=2)
+        
+        languages = service.get_languages()
+        
+        return json.dumps({
+            "success": True,
+            "service_available": True,
+            "languages": languages,
+            "language_count": len(languages)
+        }, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e),
+            "languages": []
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def translate_headlines(
+    date_query: Optional[str] = "today",
+    platforms: Optional[List[str]] = None,
+    target_language: str = "en",
+    limit: int = 20
+) -> str:
+    """
+    Translate news headlines from cached data to a target language.
+    
+    This tool fetches headlines from the news cache and translates them.
+    Useful for reading news from platforms in languages you don't understand.
+    
+    Args:
+        date_query: Date to fetch headlines from (default: "today")
+                   Supports: "today", "yesterday", "2025-11-29", etc.
+        platforms: Platform IDs to include (default: all platforms)
+                  Examples: ["spiegel", "lemonde", "folha", "elpais"]
+        target_language: Language to translate to (default: "en")
+                        Available: en, de, zh-Hans, fr, es
+        limit: Maximum headlines to translate (default: 20)
+    
+    Returns:
+        JSON with translated headlines:
+        - success: Whether translation succeeded
+        - headlines: List of headlines with original and translated text
+        - source_platforms: Which platforms were included
+        - target_language: Target language used
+        - translation_count: Number of successfully translated headlines
+    
+    Examples:
+        Translate today's German news to English:
+        → translate_headlines(platforms=["spiegel", "heise"], target_language="en")
+        
+        Translate French news to Spanish:
+        → translate_headlines(platforms=["lemonde"], target_language="es")
+        
+        Translate all non-English news from yesterday:
+        → translate_headlines(date_query="yesterday", target_language="en", limit=30)
+    """
+    from .services.translation_service import get_translation_service
+    
+    try:
+        service = get_translation_service()
+        
+        if not service.is_available():
+            return json.dumps({
+                "success": False,
+                "service_available": False,
+                "error": "Translation service not available. Start LibreTranslate with: cd libretranslate-upstream && docker compose up -d"
+            }, ensure_ascii=False, indent=2)
+        
+        # Get headlines from data tools
+        tools = _get_tools()
+        news_result = tools['data'].get_news_by_date(
+            date_query=date_query,
+            platforms=platforms,
+            limit=limit,
+            include_url=True
+        )
+        
+        if not news_result.get('success') or not news_result.get('data'):
+            return json.dumps({
+                "success": False,
+                "error": "No headlines found for the specified date/platforms",
+                "query": {
+                    "date": date_query,
+                    "platforms": platforms
+                }
+            }, ensure_ascii=False, indent=2)
+        
+        # Translate headlines
+        translated_headlines = []
+        for item in news_result['data'][:limit]:
+            title = item.get('title', '')
+            platform = item.get('platform', 'unknown')
+            url = item.get('url', '')
+            
+            # Skip if empty
+            if not title:
+                continue
+            
+            # Translate
+            translated = service.translate(title, source="auto", target=target_language)
+            
+            translated_headlines.append({
+                "platform": platform,
+                "original": title,
+                "translated": translated or title,
+                "url": url,
+                "translation_success": translated is not None
+            })
+        
+        success_count = sum(1 for h in translated_headlines if h['translation_success'])
+        
+        return json.dumps({
+            "success": True,
+            "service_available": True,
+            "headlines": translated_headlines,
+            "target_language": target_language,
+            "translation_count": success_count,
+            "total_headlines": len(translated_headlines),
+            "source_platforms": list(set(h['platform'] for h in translated_headlines))
+        }, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e)
+        }, ensure_ascii=False, indent=2)
+
+
 # ==================== 配置与系统管理工具 ====================
 
 @mcp.tool
@@ -917,10 +1170,19 @@ def run_server(
     print("    9. find_similar_news        - 相似新闻查找")
     print("    10. generate_summary_report - 每日/每周摘要生成")
     print()
+    print("    === 深度搜索工具 ===")
+    print("    11. deep_search             - 深度搜索（直接查询新闻网站）")
+    print("    12. meta_search             - 元搜索（多平台综合研究）")
+    print()
+    print("    === 翻译工具（可选 - 需要LibreTranslate）===")
+    print("    13. translate_text          - 翻译文本")
+    print("    14. get_translation_languages - 获取支持的语言")
+    print("    15. translate_headlines     - 翻译新闻标题")
+    print()
     print("    === 配置与系统管理 ===")
-    print("    11. get_current_config      - 获取当前系统配置")
-    print("    12. get_system_status       - 获取系统运行状态")
-    print("    13. trigger_crawl           - 手动触发爬取任务")
+    print("    16. get_current_config      - 获取当前系统配置")
+    print("    17. get_system_status       - 获取系统运行状态")
+    print("    18. trigger_crawl           - 手动触发爬取任务")
     print("=" * 60)
     print()
 
