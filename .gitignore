@@ -154,3 +154,11 @@ libretranslate-upstream/
 # Woodchuck News generated output
 woodchuck-news/output/
 woodchuck-news/.venv/
+
+# Service PID files
+*.pid
+.mcp_server.pid
+.rest_api.pid
+news-chat/.news_chat.pid
+news-chat/.venv/
+news-chat/server.log

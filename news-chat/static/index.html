@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Chat - AI News Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        chat: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Markdown-like styling for responses */
+        .message-content p { margin-bottom: 0.5rem; }
+        .message-content ul, .message-content ol { margin-left: 1.5rem; margin-bottom: 0.5rem; }
+        .message-content li { margin-bottom: 0.25rem; }
+        .message-content code { 
+            background: #f3f4f6; 
+            padding: 0.125rem 0.25rem; 
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+        .message-content pre {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+        }
+        .message-content strong { font-weight: 600; }
+        .message-content em { font-style: italic; }
+        
+        /* Typing indicator */
+        .typing-indicator span {
+            animation: blink 1.4s infinite both;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+        
+        /* Smooth scroll */
+        #chat-messages {
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="flex flex-col h-screen max-w-4xl mx-auto">
+        <!-- Header -->
+        <header class="bg-chat-800 text-white p-4 shadow-lg">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">🗞️</span>
+                    <div>
+                        <h1 class="text-xl font-bold">News Chat</h1>
+                        <p class="text-chat-200 text-sm">AI-powered news assistant</p>
+                    </div>
+                </div>
+                <div id="status-indicator" class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-yellow-400" id="status-dot"></span>
+                    <span class="text-sm text-chat-200" id="status-text">Connecting...</span>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Chat Messages -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
+            <!-- Welcome message -->
+            <div class="flex gap-3">
+                <div class="w-8 h-8 rounded-full bg-chat-600 flex items-center justify-center text-white flex-shrink-0">
+                    🤖
+                </div>
+                <div class="bg-white rounded-lg p-4 shadow-sm max-w-[80%]">
+                    <div class="message-content text-gray-800">
+                        <p><strong>Welcome to News Chat!</strong> 👋</p>
+                        <p>I'm your AI news assistant connected to TrendRadar. I can help you:</p>
+                        <ul class="list-disc">
+                            <li>Search for news on specific topics</li>
+                            <li>Find trending stories across regions</li>
+                            <li>Analyze media coverage and sentiment</li>
+                            <li>Translate headlines between languages</li>
+                        </ul>
+                        <p class="mt-2">Try asking: <em>"What are today's top tech headlines?"</em></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Input Area -->
+        <div class="border-t bg-white p-4">
+            <form id="chat-form" class="flex gap-3">
+                <input 
+                    type="text" 
+                    id="user-input"
+                    placeholder="Ask about news..."
+                    class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-chat-500 focus:border-transparent"
+                    autocomplete="off"
+                >
+                <button 
+                    type="submit"
+                    id="send-button"
+                    class="px-6 py-3 bg-chat-600 text-white rounded-lg hover:bg-chat-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    Send
+                </button>
+            </form>
+            <div class="mt-2 flex gap-2 text-xs text-gray-500">
+                <span>Suggestions:</span>
+                <button onclick="askQuestion('What are the top headlines today?')" class="hover:text-chat-600">Headlines</button>
+                <span>•</span>
+                <button onclick="askQuestion('What is trending in Europe?')" class="hover:text-chat-600">Europe</button>
+                <span>•</span>
+                <button onclick="askQuestion('Search for AI news')" class="hover:text-chat-600">AI News</button>
+                <span>•</span>
+                <button onclick="askQuestion('List available news sources')" class="hover:text-chat-600">Sources</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Chat state
+        let messages = [];
+        let isStreaming = false;
+        
+        // DOM elements
+        const chatMessages = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        
+        // Check connection status
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                
+                if (status.ollama.connected && status.mcp.connected) {
+                    statusDot.className = 'w-2 h-2 rounded-full bg-green-400';
+                    statusText.textContent = `Connected (${status.ollama.model})`;
+                } else if (status.ollama.connected) {
+                    statusDot.className = 'w-2 h-2 rounded-full bg-yellow-400';
+                    statusText.textContent = 'MCP disconnected';
+                } else {
+                    statusDot.className = 'w-2 h-2 rounded-full bg-red-400';
+                    statusText.textContent = 'Ollama disconnected';
+                }
+            } catch (e) {
+                statusDot.className = 'w-2 h-2 rounded-full bg-red-400';
+                statusText.textContent = 'Server offline';
+            }
+        }
+        
+        // Add message to UI
+        function addMessage(role, content, isStreaming = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'flex gap-3';
+            
+            const avatar = role === 'user' 
+                ? '<div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-white flex-shrink-0">👤</div>'
+                : '<div class="w-8 h-8 rounded-full bg-chat-600 flex items-center justify-center text-white flex-shrink-0">🤖</div>';
+            
+            const bgColor = role === 'user' ? 'bg-chat-100' : 'bg-white';
+            const alignment = role === 'user' ? 'ml-auto flex-row-reverse' : '';
+            
+            messageDiv.className = `flex gap-3 ${alignment}`;
+            messageDiv.innerHTML = `
+                ${avatar}
+                <div class="${bgColor} rounded-lg p-4 shadow-sm max-w-[80%]">
+                    <div class="message-content text-gray-800" id="${isStreaming ? 'streaming-content' : ''}">${formatContent(content)}</div>
+                </div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return messageDiv;
+        }
+        
+        // Format content with basic markdown
+        function formatContent(content) {
+            return content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`(.*?)`/g, '<code>$1</code>')
+                .replace(/\n/g, '<br>');
+        }
+        
+        // Add typing indicator
+        function addTypingIndicator() {
+            const div = document.createElement('div');
+            div.id = 'typing-indicator';
+            div.className = 'flex gap-3';
+            div.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-chat-600 flex items-center justify-center text-white flex-shrink-0">🤖</div>
+                <div class="bg-white rounded-lg p-4 shadow-sm">
+                    <div class="typing-indicator flex gap-1">
+                        <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                        <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                        <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) indicator.remove();
+        }
+        
+        // Send message
+        async function sendMessage(userMessage) {
+            if (isStreaming || !userMessage.trim()) return;
+            
+            isStreaming = true;
+            sendButton.disabled = true;
+            userInput.value = '';
+            
+            // Add user message
+            messages.push({ role: 'user', content: userMessage });
+            addMessage('user', userMessage);
+            
+            // Add typing indicator
+            addTypingIndicator();
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: messages,
+                        stream: true
+                    })
+                });
+                
+                removeTypingIndicator();
+                
+                // Create assistant message container
+                const assistantDiv = addMessage('assistant', '', true);
+                const contentDiv = assistantDiv.querySelector('.message-content');
+                let fullContent = '';
+                
+                // Read SSE stream
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') continue;
+                            
+                            try {
+                                const parsed = JSON.parse(data);
+                                if (parsed.content) {
+                                    fullContent += parsed.content;
+                                    contentDiv.innerHTML = formatContent(fullContent);
+                                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                                }
+                            } catch (e) {
+                                // Ignore parse errors
+                            }
+                        }
+                    }
+                }
+                
+                // Save assistant message
+                messages.push({ role: 'assistant', content: fullContent });
+                
+            } catch (e) {
+                removeTypingIndicator();
+                addMessage('assistant', `Error: ${e.message}`);
+            }
+            
+            isStreaming = false;
+            sendButton.disabled = false;
+            userInput.focus();
+        }
+        
+        // Quick question
+        function askQuestion(question) {
+            userInput.value = question;
+            sendMessage(question);
+        }
+        
+        // Event listeners
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            sendMessage(userInput.value);
+        });
+        
+        // Check status on load and periodically
+        checkStatus();
+        setInterval(checkStatus, 30000);
+        
+        // Focus input on load
+        userInput.focus();
+    </script>
+</body>
+</html>
