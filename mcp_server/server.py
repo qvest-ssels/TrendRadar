@@ -680,6 +680,91 @@ async def deep_search(
         }, ensure_ascii=False, indent=2)
 
 
+@mcp.tool
+async def meta_search(
+    topic: str,
+    related_terms: Optional[List[str]] = None,
+    languages: Optional[List[str]] = None,
+    max_results_per_query: int = 30,
+    include_url: bool = True
+) -> str:
+    """
+    Meta Search - Comprehensive research tool for news events and topics
+
+    This is a high-level research tool that goes beyond simple search:
+    1. Searches for the main topic across all supported platforms
+    2. Optionally searches related terms to expand coverage
+    3. Clusters similar articles to identify distinct news events/stories
+    4. Analyzes coverage across platforms and languages
+    5. Returns a research summary with key stories and insights
+
+    Use this tool when you need to:
+    - Research a complex topic with multiple angles
+    - Find how different news sources cover an event
+    - Identify the main stories/events within a topic
+    - Compare international vs regional coverage
+    - Get a comprehensive overview before deeper analysis
+
+    Args:
+        topic: Main topic or event to research
+               Examples: "AI regulation", "Tesla layoffs", "climate summit", "election results"
+        related_terms: Additional search terms to expand coverage (optional)
+                      Examples for "AI regulation": ["artificial intelligence law", "OpenAI policy", "EU AI Act"]
+                      This helps find articles that discuss the same topic but use different terminology
+        languages: Filter by languages (optional)
+                   - ["en"]: Only English sources
+                   - ["en", "de"]: English and German
+                   - None: All languages (default)
+                   Available: en (English), de (German), fr (French), zh (Chinese), pt (Portuguese)
+        max_results_per_query: Maximum results per search query (default 30)
+        include_url: Include article URLs in results (default True)
+
+    Returns:
+        JSON with comprehensive research results:
+        - topic: The searched topic
+        - key_stories: Top stories identified with coverage count
+        - clusters: Groups of related articles
+        - platform_coverage: Which platforms covered this topic
+        - language_coverage: Coverage by language
+        - total_articles: Total unique articles found
+        - search_queries: Statistics for each query
+
+    Examples:
+        User: "Research news about AI regulation"
+        → meta_search(topic="AI regulation", related_terms=["artificial intelligence law", "EU AI Act"])
+
+        User: "Find all coverage of the Tesla layoffs in English and German news"
+        → meta_search(topic="Tesla layoffs", languages=["en", "de"])
+
+        User: "What are the main stories about climate change this week?"
+        → meta_search(topic="climate change", related_terms=["global warming", "COP29", "carbon emissions"])
+
+        User: "Research how different countries cover the US election"
+        → meta_search(topic="US election 2024", related_terms=["Trump", "Biden", "American politics"])
+    """
+    from .services.search_service import MetaSearchService
+    
+    try:
+        search_service = MetaSearchService()
+        
+        result = search_service.research_topic(
+            topic=topic,
+            related_terms=related_terms,
+            languages=languages,
+            max_results_per_query=max_results_per_query,
+            include_url=include_url
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "META_SEARCH_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
 # ==================== 配置与系统管理工具 ====================
 
 @mcp.tool

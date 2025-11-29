@@ -792,13 +792,21 @@ class DeepSearchService:
     ) -> List[Dict]:
         """Search cached RSS headlines using existing data service"""
         try:
+            # Convert date_range dict to tuple if provided
+            date_tuple = None
+            if date_range:
+                from datetime import datetime
+                start = datetime.strptime(date_range.get("start", ""), "%Y-%m-%d") if date_range.get("start") else None
+                end = datetime.strptime(date_range.get("end", ""), "%Y-%m-%d") if date_range.get("end") else None
+                if start and end:
+                    date_tuple = (start, end)
+            
             # Use the data service's search functionality
-            search_result = self.data_service.search_news(
+            search_result = self.data_service.search_news_by_keyword(
                 keyword=query,
                 platforms=platforms,
-                date_range=date_range,
-                limit=limit,
-                include_url=include_url
+                date_range=date_tuple,
+                limit=limit
             )
             
             # Convert to standardized format
@@ -881,3 +889,285 @@ class DeepSearchService:
         all_results.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)
         
         return all_results[:max_results]
+
+
+class MetaSearchService:
+    """
+    Meta Search Service - Research tool for comprehensive news event analysis.
+    
+    This service provides high-level research capabilities by:
+    1. Running multiple parallel searches across platforms
+    2. Clustering related articles by topic similarity
+    3. Identifying key events, perspectives, and sources
+    4. Generating a comprehensive research summary
+    """
+    
+    def __init__(self, project_root: str = None):
+        """Initialize the meta search service."""
+        self.deep_search = DeepSearchService(project_root)
+        
+    def research_topic(
+        self,
+        topic: str,
+        related_terms: Optional[List[str]] = None,
+        languages: Optional[List[str]] = None,
+        max_results_per_query: int = 30,
+        cluster_threshold: float = 0.4,
+        include_url: bool = True
+    ) -> Dict:
+        """
+        Research a topic comprehensively across multiple news sources.
+        
+        This is a meta-search that:
+        1. Searches for the main topic
+        2. Searches for related terms (if provided)
+        3. Clusters results by similarity to identify distinct events/stories
+        4. Analyzes coverage across different platforms and languages
+        
+        Args:
+            topic: Main topic or event to research (e.g., "AI regulation", "Tesla layoffs")
+            related_terms: Additional search terms to expand coverage
+                          (e.g., ["artificial intelligence", "machine learning", "OpenAI"])
+            languages: Language filters (e.g., ["en", "de"]). None = all languages
+            max_results_per_query: Max results per search query
+            cluster_threshold: Similarity threshold for clustering (0.0-1.0)
+            include_url: Whether to include URLs in results
+            
+        Returns:
+            Dict with:
+            - topic: Original search topic
+            - clusters: Groups of related articles
+            - platform_coverage: Coverage by platform
+            - language_coverage: Coverage by language
+            - key_stories: Top stories identified
+            - total_articles: Total unique articles found
+            - search_queries: All queries executed
+        """
+        start_time = time.time()
+        
+        # Build search queries
+        queries = [topic]
+        if related_terms:
+            queries.extend(related_terms)
+        
+        # Collect all results
+        all_results = []
+        query_stats = {}
+        
+        for query in queries:
+            # Search each language if specified, otherwise all
+            search_languages = languages if languages else [None]
+            
+            for lang in search_languages:
+                try:
+                    search_result = self.deep_search.deep_search(
+                        query=query,
+                        language=lang,
+                        mode="both",
+                        max_results=max_results_per_query,
+                        include_url=include_url
+                    )
+                    
+                    combined = search_result.get("combined", [])
+                    
+                    # Tag results with the query that found them
+                    for item in combined:
+                        item["search_query"] = query
+                        item["search_language"] = lang
+                    
+                    all_results.extend(combined)
+                    
+                    query_key = f"{query}" + (f" ({lang})" if lang else "")
+                    query_stats[query_key] = len(combined)
+                    
+                except Exception as e:
+                    logger.error(f"Search failed for query '{query}' (lang={lang}): {e}")
+        
+        # Deduplicate results
+        unique_results = self._deduplicate_results(all_results)
+        
+        # Cluster results by similarity
+        clusters = self._cluster_results(unique_results, cluster_threshold)
+        
+        # Analyze coverage
+        platform_coverage = self._analyze_platform_coverage(unique_results)
+        language_coverage = self._analyze_language_coverage(unique_results)
+        
+        # Identify key stories (top from each cluster)
+        key_stories = self._extract_key_stories(clusters, max_stories=10)
+        
+        return {
+            "success": True,
+            "topic": topic,
+            "related_terms": related_terms or [],
+            "clusters": clusters,
+            "key_stories": key_stories,
+            "platform_coverage": platform_coverage,
+            "language_coverage": language_coverage,
+            "total_articles": len(unique_results),
+            "cluster_count": len(clusters),
+            "search_queries": query_stats,
+            "search_time_seconds": round(time.time() - start_time, 2)
+        }
+    
+    def _deduplicate_results(self, results: List[Dict]) -> List[Dict]:
+        """Deduplicate results by title similarity and URL."""
+        seen_titles = set()
+        seen_urls = set()
+        unique = []
+        
+        def normalize_title(title: str) -> str:
+            return re.sub(r'[^\w\s]', '', title.lower())[:100]
+        
+        for item in results:
+            title_norm = normalize_title(item.get("title", ""))
+            url = item.get("url", "")
+            
+            if title_norm not in seen_titles and (not url or url not in seen_urls):
+                unique.append(item)
+                seen_titles.add(title_norm)
+                if url:
+                    seen_urls.add(url)
+        
+        return unique
+    
+    def _cluster_results(
+        self, 
+        results: List[Dict], 
+        threshold: float = 0.4
+    ) -> List[Dict]:
+        """
+        Cluster results by title similarity to identify related stories.
+        
+        Uses a simple greedy clustering approach:
+        1. Sort by relevance score
+        2. For each article, either add to existing cluster or create new one
+        """
+        if not results:
+            return []
+        
+        # Sort by relevance
+        sorted_results = sorted(
+            results, 
+            key=lambda x: x.get("relevance_score", 0), 
+            reverse=True
+        )
+        
+        clusters = []
+        
+        for item in sorted_results:
+            title = item.get("title", "").lower()
+            
+            # Find best matching cluster
+            best_cluster = None
+            best_similarity = 0
+            
+            for cluster in clusters:
+                # Compare with cluster representative (first item)
+                rep_title = cluster["representative"]["title"].lower()
+                similarity = SequenceMatcher(None, title, rep_title).ratio()
+                
+                if similarity > best_similarity and similarity >= threshold:
+                    best_similarity = similarity
+                    best_cluster = cluster
+            
+            if best_cluster:
+                # Add to existing cluster
+                best_cluster["articles"].append(item)
+                best_cluster["size"] += 1
+                # Update platforms in this cluster
+                platform = item.get("platform_id", "unknown")
+                if platform not in best_cluster["platforms"]:
+                    best_cluster["platforms"].append(platform)
+            else:
+                # Create new cluster
+                platform = item.get("platform_id", "unknown")
+                clusters.append({
+                    "id": len(clusters) + 1,
+                    "representative": item,
+                    "articles": [item],
+                    "size": 1,
+                    "platforms": [platform],
+                    "theme": self._extract_theme(item.get("title", ""))
+                })
+        
+        # Sort clusters by size (most coverage first)
+        clusters.sort(key=lambda c: c["size"], reverse=True)
+        
+        return clusters
+    
+    def _extract_theme(self, title: str) -> str:
+        """Extract a short theme/summary from title."""
+        # Simple approach: take first 50 chars or up to first punctuation
+        title = title.strip()
+        for punct in [':', '-', '–', '|', '—']:
+            if punct in title:
+                title = title.split(punct)[0].strip()
+                break
+        return title[:60] + "..." if len(title) > 60 else title
+    
+    def _analyze_platform_coverage(self, results: List[Dict]) -> Dict:
+        """Analyze how many articles come from each platform."""
+        platform_counts = {}
+        for item in results:
+            platform = item.get("platform_id", "unknown")
+            platform_name = item.get("platform_name", platform)
+            if platform not in platform_counts:
+                platform_counts[platform] = {
+                    "name": platform_name,
+                    "count": 0
+                }
+            platform_counts[platform]["count"] += 1
+        
+        # Sort by count
+        sorted_platforms = sorted(
+            platform_counts.items(),
+            key=lambda x: x[1]["count"],
+            reverse=True
+        )
+        
+        return {k: v for k, v in sorted_platforms}
+    
+    def _analyze_language_coverage(self, results: List[Dict]) -> Dict:
+        """Analyze coverage by language."""
+        # Get platform languages from SiteSearchService
+        site_search = self.deep_search.site_search
+        
+        language_counts = {}
+        for item in results:
+            platform = item.get("platform_id", "")
+            lang = site_search.get_platform_language(platform) or "unknown"
+            
+            if lang not in language_counts:
+                language_counts[lang] = 0
+            language_counts[lang] += 1
+        
+        # Sort by count
+        sorted_langs = sorted(
+            language_counts.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        return dict(sorted_langs)
+    
+    def _extract_key_stories(
+        self, 
+        clusters: List[Dict], 
+        max_stories: int = 10
+    ) -> List[Dict]:
+        """Extract key stories from clusters."""
+        key_stories = []
+        
+        for cluster in clusters[:max_stories]:
+            rep = cluster["representative"]
+            key_stories.append({
+                "title": rep.get("title", ""),
+                "url": rep.get("url", ""),
+                "platform": rep.get("platform_id", ""),
+                "coverage_count": cluster["size"],
+                "platforms_covering": cluster["platforms"],
+                "theme": cluster["theme"]
+            })
+        
+        return key_stories
