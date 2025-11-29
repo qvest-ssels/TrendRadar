@@ -2,8 +2,13 @@
 Tests for News Chat API endpoints
 """
 
+import sys
+import os
 import pytest
 from fastapi.testclient import TestClient
+
+# Add the app directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from app.main import app
 

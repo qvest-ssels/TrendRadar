@@ -1,9 +1,13 @@
-"""
-Tests for MCP client functionality
+"""Tests for MCP client functionality
 """
 
+import sys
+import os
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
+
+# Add the app directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from app.mcp.client import MCPClient, get_mcp_client
 

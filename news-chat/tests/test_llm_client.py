@@ -1,9 +1,13 @@
-"""
-Tests for LLM client functionality
+"""Tests for LLM client functionality
 """
 
+import sys
+import os
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
+
+# Add the app directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from app.llm.client import LLMClient, get_llm_client
 from app.llm.tools import MCP_TOOLS, SYSTEM_PROMPT

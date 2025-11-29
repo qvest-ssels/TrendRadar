@@ -197,9 +197,49 @@
             return messageDiv;
         }
         
-        // Format content with basic markdown
+        // Escape HTML to prevent XSS attacks
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Format content with basic markdown and clickable links (XSS-safe)
         function formatContent(content) {
-            return content
+            // First, escape any HTML to prevent XSS
+            let escaped = escapeHtml(content);
+            
+            // Convert markdown links [text](url) to clickable links
+            // External links get target="_blank" and security attributes
+            escaped = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (match, text, url) => {
+                // Validate URL to prevent javascript: and data: attacks
+                if (!url.match(/^https?:\/\//i)) {
+                    return escapeHtml(text); // Just show text if URL is suspicious
+                }
+                return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="text-chat-600 hover:text-chat-700 underline">${escapeHtml(text)} ↗</a>`;
+            });
+            
+            // Convert internal links (relative paths like /source/platform/)
+            escaped = escaped.replace(/\[([^\]]+)\]\(\/([^)]+)\)/g, (match, text, path) => {
+                // Validate path - only allow alphanumeric, slashes, hyphens, underscores
+                if (!path.match(/^[\w\-\/]+$/)) {
+                    return escapeHtml(text);
+                }
+                return `<a href="/${escapeHtml(path)}" class="text-chat-600 hover:text-chat-700 underline">${escapeHtml(text)}</a>`;
+            });
+            
+            // Auto-link bare URLs that aren't already linked
+            escaped = escaped.replace(/(?<![">])(https?:\/\/[^\s<]+)/g, (url) => {
+                if (!url.match(/^https?:\/\//i)) {
+                    return escapeHtml(url);
+                }
+                // Truncate long URLs for display
+                const displayUrl = url.length > 50 ? url.substring(0, 47) + '...' : url;
+                return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="text-chat-600 hover:text-chat-700 underline">${escapeHtml(displayUrl)} ↗</a>`;
+            });
+            
+            // Format markdown (after escaping, so we work with safe content)
+            return escaped
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
                 .replace(/`(.*?)`/g, '<code>$1</code>')
