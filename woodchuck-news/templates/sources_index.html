@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}All Sources - Woodchuck News{% endblock %}
+{% block description %}Browse {{ total_sources }} news sources organized by region{% endblock %}
+
+{% block content %}
+<!-- Sources Header -->
+<div class="mb-8">
+    <nav class="text-sm text-gray-500 mb-4">
+        <a href="/" class="hover:text-woodchuck-600">Home</a>
+        <span class="mx-2">→</span>
+        <span class="text-gray-900">Sources</span>
+    </nav>
+    
+    <div class="bg-gradient-to-r from-purple-800 to-purple-600 rounded-2xl p-8 text-white">
+        <div class="flex items-center gap-4">
+            <span class="text-5xl">📰</span>
+            <div>
+                <h1 class="text-3xl font-bold mb-2">News Sources</h1>
+                <p class="text-purple-200">
+                    {{ total_sources }} sources across {{ sources_by_region|length }} regions
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tree View of Sources by Region -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="p-4 bg-gray-50 border-b border-gray-100">
+        <h2 class="font-semibold text-gray-800 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+            </svg>
+            Sources by Region
+        </h2>
+    </div>
+    
+    <div class="divide-y divide-gray-100">
+        {% for region_id, sources in sources_by_region.items()|sort %}
+        <div class="region-group" x-data="{ open: true }">
+            <!-- Region Header -->
+            <button @click="open = !open" 
+                    class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-gray-400 transform transition-transform" 
+                         :class="{ 'rotate-90': open }"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                    <span class="text-xl mr-2">
+                        {% if region_id == "europe" %}🇪🇺
+                        {% elif region_id == "eurasia" %}🇷🇺
+                        {% elif region_id == "americas" %}🌎
+                        {% elif region_id == "asia" %}🌏
+                        {% elif region_id == "middle_east" %}🕌
+                        {% elif region_id == "oceania" %}🦘
+                        {% elif region_id == "africa" %}🌍
+                        {% else %}🌐{% endif %}
+                    </span>
+                    <span class="font-medium text-gray-800">{{ regions.get(region_id, region_id|title) }}</span>
+                </div>
+                <span class="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                    {{ sources|length }} source{% if sources|length != 1 %}s{% endif %}
+                </span>
+            </button>
+            
+            <!-- Sources List -->
+            <div x-show="open" x-collapse class="border-t border-gray-100 bg-gray-50">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 p-4">
+                    {% for source in sources %}
+                    <a href="/source/{{ source.id }}/" 
+                       class="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-400 hover:shadow-sm transition-all">
+                        <div class="flex items-center min-w-0">
+                            <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-medium mr-3 flex-shrink-0">
+                                {{ source.name[:2]|upper }}
+                            </div>
+                            <div class="min-w-0">
+                                <div class="font-medium text-gray-800 truncate">{{ source.name }}</div>
+                                <div class="text-xs text-gray-500">{{ source.id }}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center ml-2 flex-shrink-0">
+                            <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                                {{ source.count }}
+                            </span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- All Sources Flat List -->
+<div class="mt-8">
+    <h2 class="text-xl font-semibold mb-4 text-gray-700">All Sources (A-Z)</h2>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        {% set all_sources = [] %}
+        {% for region_id, sources in sources_by_region.items() %}
+            {% for source in sources %}
+                {% set _ = all_sources.append(source) %}
+            {% endfor %}
+        {% endfor %}
+        {% for source in all_sources|sort(attribute='name') %}
+        <a href="/source/{{ source.id }}/" 
+           class="p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-400 hover:shadow-sm transition-all text-center">
+            <div class="font-medium text-gray-800 truncate">{{ source.name }}</div>
+            <div class="text-sm text-gray-500">{{ source.count }} headlines</div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<!-- Alpine.js for interactive tree -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+{% endblock %}

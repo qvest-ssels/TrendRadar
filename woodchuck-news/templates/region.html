@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}{{ region_name }} News - Woodchuck News{% endblock %}
+{% block description %}{{ total_count }} news headlines from {{ region_name }}{% endblock %}
+
+{% block content %}
+<!-- Region Header -->
+<div class="mb-8">
+    <nav class="text-sm text-gray-500 mb-4">
+        <a href="/" class="hover:text-woodchuck-600">Home</a>
+        <span class="mx-2">→</span>
+        <a href="#" class="hover:text-woodchuck-600">Regions</a>
+        <span class="mx-2">→</span>
+        <span class="text-gray-900">{{ region_name }}</span>
+    </nav>
+    
+    <div class="bg-gradient-to-r from-blue-800 to-blue-600 rounded-2xl p-8 text-white">
+        <div class="flex items-center gap-4">
+            <span class="text-5xl">
+                {% if region == "europe" %}🇪🇺
+                {% elif region == "eurasia" %}🇷🇺
+                {% elif region == "americas" %}🌎
+                {% elif region == "asia" %}🌏
+                {% elif region == "middle_east" %}🕌
+                {% elif region == "oceania" %}🦘
+                {% elif region == "africa" %}🌍
+                {% else %}🌐{% endif %}
+            </span>
+            <div>
+                <h1 class="text-3xl font-bold mb-2">{{ region_name }}</h1>
+                <p class="text-blue-200">
+                    {{ total_count }} headlines from this region
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Other Regions -->
+<div class="mb-6">
+    <div class="flex flex-wrap gap-2">
+        <span class="text-sm text-gray-600 py-2">Other regions:</span>
+        <a href="/region/europe/" class="px-3 py-1 text-sm rounded-full border {% if region == 'europe' %}border-blue-500 bg-blue-50 text-blue-700{% else %}border-gray-300 hover:border-blue-500 hover:bg-blue-50{% endif %} transition-colors">
+            🇪🇺 Europe
+        </a>
+        <a href="/region/eurasia/" class="px-3 py-1 text-sm rounded-full border {% if region == 'eurasia' %}border-blue-500 bg-blue-50 text-blue-700{% else %}border-gray-300 hover:border-blue-500 hover:bg-blue-50{% endif %} transition-colors">
+            🇷🇺 Eurasia
+        </a>
+        <a href="/region/americas/" class="px-3 py-1 text-sm rounded-full border {% if region == 'americas' %}border-blue-500 bg-blue-50 text-blue-700{% else %}border-gray-300 hover:border-blue-500 hover:bg-blue-50{% endif %} transition-colors">
+            🌎 Americas
+        </a>
+        <a href="/region/asia/" class="px-3 py-1 text-sm rounded-full border {% if region == 'asia' %}border-blue-500 bg-blue-50 text-blue-700{% else %}border-gray-300 hover:border-blue-500 hover:bg-blue-50{% endif %} transition-colors">
+            🌏 Asia-Pacific
+        </a>
+        <a href="/region/middle_east/" class="px-3 py-1 text-sm rounded-full border {% if region == 'middle_east' %}border-blue-500 bg-blue-50 text-blue-700{% else %}border-gray-300 hover:border-blue-500 hover:bg-blue-50{% endif %} transition-colors">
+            🕌 Middle East
+        </a>
+        <a href="/region/oceania/" class="px-3 py-1 text-sm rounded-full border {% if region == 'oceania' %}border-blue-500 bg-blue-50 text-blue-700{% else %}border-gray-300 hover:border-blue-500 hover:bg-blue-50{% endif %} transition-colors">
+            🦘 Oceania
+        </a>
+    </div>
+</div>
+
+<!-- Headlines List -->
+<div class="space-y-4">
+    {% for headline in headlines %}
+    <article class="headline-card bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:border-blue-300">
+        <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+                <!-- Badges -->
+                <div class="flex flex-wrap items-center gap-2 mb-2">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-woodchuck-100 text-woodchuck-800">
+                        {{ headline.platform }}
+                    </span>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                        {{ headline.language_name }}
+                    </span>
+                    <span class="text-xs text-gray-500">{{ headline.date }}</span>
+                </div>
+                
+                <!-- Title -->
+                <h2 class="text-lg font-medium text-gray-900 mb-2">
+                    <a href="/news/{{ headline.date }}/{{ headline.slug }}-{{ headline.id }}.html" 
+                       class="hover:text-blue-700">
+                        {{ headline.title }}
+                    </a>
+                </h2>
+                
+                <!-- Description -->
+                {% if headline.description %}
+                <p class="text-gray-600 text-sm line-clamp-2 mb-2">
+                    {{ headline.description }}
+                </p>
+                {% endif %}
+                
+                <!-- Meta -->
+                <div class="flex items-center gap-4 text-sm text-gray-500">
+                    <time>{{ headline.time }}</time>
+                    {% if headline.url %}
+                    <a href="{{ headline.url }}" target="_blank" rel="noopener" 
+                       class="text-blue-600 hover:text-blue-800">
+                        Read original →
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if headline.image_url %}
+            <div class="hidden sm:block flex-shrink-0">
+                <img src="{{ headline.image_url }}" alt="" 
+                     class="w-20 h-20 object-cover rounded-lg bg-gray-100"
+                     loading="lazy"
+                     onerror="this.style.display='none'">
+            </div>
+            {% endif %}
+        </div>
+    </article>
+    {% endfor %}
+</div>
+
+{% if not headlines %}
+<div class="text-center py-12">
+    <div class="text-6xl mb-4">🦫</div>
+    <h2 class="text-xl font-semibold text-gray-700 mb-2">No headlines from {{ region_name }}</h2>
+    <p class="text-gray-500">The woodchuck didn't find any news from this region yet.</p>
+    <a href="/" class="inline-block mt-4 text-blue-600 hover:text-blue-800">
+        ← Back to home
+    </a>
+</div>
+{% endif %}
+{% endblock %}

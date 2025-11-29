@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Woodchuck News{% endblock %}</title>
+    <meta name="description" content="{% block description %}Global news headlines aggregated by TrendRadar{% endblock %}">
+    
+    <!-- TailwindCSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        woodchuck: {
+                            50: '#fdf8f6',
+                            100: '#f2e8e5',
+                            200: '#eaddd7',
+                            300: '#e0cec7',
+                            400: '#d2bab0',
+                            500: '#bfa094',
+                            600: '#a18072',
+                            700: '#977669',
+                            800: '#846358',
+                            900: '#43302b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #bfa094;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #977669;
+        }
+        
+        /* Smooth transitions */
+        .headline-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .headline-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-woodchuck-800 text-white sticky top-0 z-50 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <a href="/" class="flex items-center space-x-3">
+                    <span class="text-3xl">🦫</span>
+                    <span class="font-bold text-xl">Woodchuck News</span>
+                </a>
+                
+                <!-- Main Nav -->
+                <div class="hidden md:flex items-center space-x-6">
+                    <a href="/" class="hover:text-woodchuck-200 transition-colors">Home</a>
+                    
+                    <!-- Regions Dropdown -->
+                    <div class="relative group">
+                        <button class="hover:text-woodchuck-200 transition-colors flex items-center">
+                            Regions
+                            <svg class="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div class="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            <a href="/region/europe/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100 rounded-t-lg">🇪🇺 Europe</a>
+                            <a href="/region/eurasia/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100">🇷🇺 Eurasia</a>
+                            <a href="/region/americas/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100">🌎 Americas</a>
+                            <a href="/region/asia/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100">🌏 Asia-Pacific</a>
+                            <a href="/region/middle_east/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100">🕌 Middle East</a>
+                            <a href="/region/oceania/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100 rounded-b-lg">🦘 Oceania</a>
+                        </div>
+                    </div>
+                    
+                    <!-- Languages Dropdown -->
+                    <div class="relative group">
+                        <button class="hover:text-woodchuck-200 transition-colors flex items-center">
+                            Languages
+                            <svg class="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div class="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            <a href="/language/en/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100 rounded-t-lg">🇬🇧 English</a>
+                            <a href="/language/de/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100">🇩🇪 Deutsch</a>
+                            <a href="/language/zh/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100">🇨🇳 中文</a>
+                            <a href="/language/ja/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100">🇯🇵 日本語</a>
+                            <a href="/language/ko/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100">🇰🇷 한국어</a>
+                            <a href="/language/es/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100 rounded-b-lg">🇪🇸 Español</a>
+                        </div>
+                    </div>
+                    
+                    <!-- Sources Link -->
+                    <a href="/source/" class="hover:text-woodchuck-200 transition-colors">Sources</a>
+                </div>
+                
+                <!-- Mobile menu button -->
+                <div class="md:hidden">
+                    <button type="button" id="mobile-menu-btn" class="text-white hover:text-woodchuck-200">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-woodchuck-900">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <a href="/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">Home</a>
+                <a href="/source/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">📰 All Sources</a>
+                <a href="/region/europe/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">🇪🇺 Europe</a>
+                <a href="/region/eurasia/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">🇷🇺 Eurasia</a>
+                <a href="/region/americas/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">🌎 Americas</a>
+                <a href="/region/asia/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">🌏 Asia-Pacific</a>
+                <a href="/language/en/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">English</a>
+                <a href="/language/de/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">Deutsch</a>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-woodchuck-900 text-white mt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- About -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <span class="text-2xl mr-2">🦫</span> Woodchuck News
+                    </h3>
+                    <p class="text-woodchuck-300 text-sm">
+                        Global news headlines aggregated by TrendRadar MCP.
+                        Not affiliated with any woodchucks, particularly not those from Wisconsin.
+                    </p>
+                </div>
+                
+                <!-- Quick Links -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Regions</h3>
+                    <ul class="space-y-2 text-woodchuck-300 text-sm">
+                        <li><a href="/region/europe/" class="hover:text-white">Europe</a></li>
+                        <li><a href="/region/americas/" class="hover:text-white">Americas</a></li>
+                        <li><a href="/region/asia/" class="hover:text-white">Asia-Pacific</a></li>
+                        <li><a href="/region/middle_east/" class="hover:text-white">Middle East</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Languages -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Languages</h3>
+                    <ul class="space-y-2 text-woodchuck-300 text-sm">
+                        <li><a href="/language/en/" class="hover:text-white">English</a></li>
+                        <li><a href="/language/de/" class="hover:text-white">Deutsch</a></li>
+                        <li><a href="/language/zh/" class="hover:text-white">中文</a></li>
+                        <li><a href="/language/ja/" class="hover:text-white">日本語</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-woodchuck-800 mt-8 pt-8 text-center text-woodchuck-400 text-sm">
+                <p>Generated: {{ generated_at }}</p>
+                <p class="mt-2">Powered by TrendRadar MCP • Static site generated with 🦫</p>
+            </div>
+        </div>
+    </footer>
+    
+    <script>
+        // Mobile menu toggle
+        document.getElementById('mobile-menu-btn').addEventListener('click', function() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        });
+    </script>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

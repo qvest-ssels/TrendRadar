@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Woodchuck News - Global Headlines{% endblock %}
+{% block description %}Latest global news headlines from {{ headlines|length }} sources across multiple regions and languages{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="bg-gradient-to-r from-woodchuck-800 to-woodchuck-600 rounded-2xl p-8 mb-8 text-white">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-4xl font-bold mb-2">🦫 Woodchuck News</h1>
+            <p class="text-woodchuck-200 text-lg">
+                How much news could a woodchuck read?
+            </p>
+            <a href="https://www.youtube.com/watch?v=ybN9jFEMbF8" target="_blank" rel="noopener" 
+               class="inline-flex items-center text-woodchuck-300 hover:text-white text-sm mt-2 transition-colors">
+                <span>🪵 How much wood would a woodchuck chuck?</span>
+                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                </svg>
+            </a>
+        </div>
+        <div class="text-right hidden sm:block">
+            <div class="text-3xl font-bold">{{ headlines|length }}</div>
+            <div class="text-woodchuck-200">Headlines Today</div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div class="text-2xl font-bold text-woodchuck-700">{{ grouped.by_region|length }}</div>
+        <div class="text-gray-500 text-sm">Regions</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div class="text-2xl font-bold text-woodchuck-700">{{ grouped.by_language|length }}</div>
+        <div class="text-gray-500 text-sm">Languages</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div class="text-2xl font-bold text-woodchuck-700">{{ grouped.by_platform|length }}</div>
+        <div class="text-gray-500 text-sm">Sources</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div class="text-2xl font-bold text-woodchuck-700">{{ grouped.by_date|length }}</div>
+        <div class="text-gray-500 text-sm">Days</div>
+    </div>
+</div>
+
+<!-- Region Quick Links -->
+<div class="mb-8">
+    <h2 class="text-xl font-semibold mb-4 text-gray-700">Browse by Region</h2>
+    <div class="flex flex-wrap gap-3">
+        {% for region_id, region_name in regions.items() %}
+        {% if region_id in grouped.by_region %}
+        <a href="/region/{{ region_id }}/" 
+           class="inline-flex items-center px-4 py-2 bg-white border border-gray-200 rounded-full hover:border-woodchuck-400 hover:bg-woodchuck-50 transition-colors">
+            {% if region_id == "europe" %}🇪🇺
+            {% elif region_id == "eurasia" %}🇷🇺
+            {% elif region_id == "americas" %}🌎
+            {% elif region_id == "asia" %}🌏
+            {% elif region_id == "middle_east" %}🕌
+            {% elif region_id == "oceania" %}🦘
+            {% elif region_id == "africa" %}🌍
+            {% else %}🌐{% endif %}
+            <span class="ml-2">{{ region_name }}</span>
+            <span class="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{{ grouped.by_region[region_id]|length }}</span>
+        </a>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Latest Headlines -->
+<div class="mb-8">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-semibold text-gray-700">Latest Headlines</h2>
+        <span class="text-sm text-gray-500">{{ headlines|length }} total</span>
+    </div>
+    
+    <div class="grid gap-4">
+        {% for headline in headlines[:30] %}
+        <article class="headline-card bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:border-woodchuck-300">
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex-1 min-w-0">
+                    <!-- Platform & Region badges -->
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-woodchuck-100 text-woodchuck-800">
+                            {{ headline.platform }}
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {{ headline.region_name }}
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                            {{ headline.language }}
+                        </span>
+                    </div>
+                    
+                    <!-- Title -->
+                    <h3 class="text-lg font-medium text-gray-900 mb-2 line-clamp-2">
+                        <a href="/news/{{ headline.date }}/{{ headline.slug }}-{{ headline.id }}.html" 
+                           class="hover:text-woodchuck-700">
+                            {{ headline.title }}
+                        </a>
+                    </h3>
+                    
+                    <!-- Description if available -->
+                    {% if headline.description %}
+                    <p class="text-gray-600 text-sm line-clamp-2 mb-2">
+                        {{ headline.description }}
+                    </p>
+                    {% endif %}
+                    
+                    <!-- Meta -->
+                    <div class="flex items-center gap-4 text-sm text-gray-500">
+                        <time datetime="{{ headline.timestamp }}">
+                            {{ headline.date }} {{ headline.time }}
+                        </time>
+                        {% if headline.url %}
+                        <a href="{{ headline.url }}" target="_blank" rel="noopener" 
+                           class="text-woodchuck-600 hover:text-woodchuck-800">
+                            Read original →
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Thumbnail if available -->
+                {% if headline.image_url %}
+                <div class="hidden sm:block flex-shrink-0">
+                    <img src="{{ headline.image_url }}" alt="" 
+                         class="w-24 h-24 object-cover rounded-lg bg-gray-100"
+                         loading="lazy"
+                         onerror="this.style.display='none'">
+                </div>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    
+    {% if headlines|length > 30 %}
+    <div class="text-center mt-6">
+        <p class="text-gray-500 text-sm">
+            Showing 30 of {{ headlines|length }} headlines. 
+            Browse by <a href="#" class="text-woodchuck-600 hover:underline">region</a> or 
+            <a href="#" class="text-woodchuck-600 hover:underline">date</a> to see more.
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Recent Dates -->
+<div class="mb-8">
+    <h2 class="text-xl font-semibold mb-4 text-gray-700">Browse by Date</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        {% for date, date_headlines in grouped.by_date.items()|sort(reverse=true) %}
+        {% if loop.index <= 7 %}
+        <a href="/news/{{ date }}/" 
+           class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:border-woodchuck-400 transition-colors text-center">
+            <div class="text-lg font-semibold text-gray-800">{{ date }}</div>
+            <div class="text-sm text-gray-500">{{ date_headlines|length }} headlines</div>
+        </a>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

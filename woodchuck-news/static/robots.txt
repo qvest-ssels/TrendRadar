@@ -1,0 +1,11 @@
+# Woodchuck News Robots.txt
+# Allow all crawlers
+
+User-agent: *
+Allow: /
+
+# Sitemap location (if generated)
+# Sitemap: https://news.example.com/sitemap.xml
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1

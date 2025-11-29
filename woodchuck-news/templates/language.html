@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}{{ language_name }} News - Woodchuck News{% endblock %}
+{% block description %}{{ total_count }} news headlines in {{ language_name }}{% endblock %}
+
+{% block content %}
+<!-- Language Header -->
+<div class="mb-8">
+    <nav class="text-sm text-gray-500 mb-4">
+        <a href="/" class="hover:text-woodchuck-600">Home</a>
+        <span class="mx-2">→</span>
+        <a href="#" class="hover:text-woodchuck-600">Languages</a>
+        <span class="mx-2">→</span>
+        <span class="text-gray-900">{{ language_name }}</span>
+    </nav>
+    
+    <div class="bg-gradient-to-r from-green-800 to-green-600 rounded-2xl p-8 text-white">
+        <div class="flex items-center gap-4">
+            <span class="text-5xl">
+                {% if language == "en" %}🇬🇧
+                {% elif language == "de" %}🇩🇪
+                {% elif language == "zh" %}🇨🇳
+                {% elif language == "ja" %}🇯🇵
+                {% elif language == "ko" %}🇰🇷
+                {% elif language == "es" %}🇪🇸
+                {% elif language == "ar" %}🇸🇦
+                {% else %}🌐{% endif %}
+            </span>
+            <div>
+                <h1 class="text-3xl font-bold mb-2">{{ language_name }}</h1>
+                <p class="text-green-200">
+                    {{ total_count }} headlines in this language
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Other Languages -->
+<div class="mb-6">
+    <div class="flex flex-wrap gap-2">
+        <span class="text-sm text-gray-600 py-2">Other languages:</span>
+        <a href="/language/en/" class="px-3 py-1 text-sm rounded-full border {% if language == 'en' %}border-green-500 bg-green-50 text-green-700{% else %}border-gray-300 hover:border-green-500 hover:bg-green-50{% endif %} transition-colors">
+            🇬🇧 English
+        </a>
+        <a href="/language/de/" class="px-3 py-1 text-sm rounded-full border {% if language == 'de' %}border-green-500 bg-green-50 text-green-700{% else %}border-gray-300 hover:border-green-500 hover:bg-green-50{% endif %} transition-colors">
+            🇩🇪 Deutsch
+        </a>
+        <a href="/language/zh/" class="px-3 py-1 text-sm rounded-full border {% if language == 'zh' %}border-green-500 bg-green-50 text-green-700{% else %}border-gray-300 hover:border-green-500 hover:bg-green-50{% endif %} transition-colors">
+            🇨🇳 中文
+        </a>
+        <a href="/language/ja/" class="px-3 py-1 text-sm rounded-full border {% if language == 'ja' %}border-green-500 bg-green-50 text-green-700{% else %}border-gray-300 hover:border-green-500 hover:bg-green-50{% endif %} transition-colors">
+            🇯🇵 日本語
+        </a>
+        <a href="/language/ko/" class="px-3 py-1 text-sm rounded-full border {% if language == 'ko' %}border-green-500 bg-green-50 text-green-700{% else %}border-gray-300 hover:border-green-500 hover:bg-green-50{% endif %} transition-colors">
+            🇰🇷 한국어
+        </a>
+        <a href="/language/es/" class="px-3 py-1 text-sm rounded-full border {% if language == 'es' %}border-green-500 bg-green-50 text-green-700{% else %}border-gray-300 hover:border-green-500 hover:bg-green-50{% endif %} transition-colors">
+            🇪🇸 Español
+        </a>
+    </div>
+</div>
+
+<!-- Headlines List -->
+<div class="space-y-4">
+    {% for headline in headlines %}
+    <article class="headline-card bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:border-green-300">
+        <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+                <!-- Badges -->
+                <div class="flex flex-wrap items-center gap-2 mb-2">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-woodchuck-100 text-woodchuck-800">
+                        {{ headline.platform }}
+                    </span>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {{ headline.region_name }}
+                    </span>
+                    <span class="text-xs text-gray-500">{{ headline.date }}</span>
+                </div>
+                
+                <!-- Title -->
+                <h2 class="text-lg font-medium text-gray-900 mb-2">
+                    <a href="/news/{{ headline.date }}/{{ headline.slug }}-{{ headline.id }}.html" 
+                       class="hover:text-green-700">
+                        {{ headline.title }}
+                    </a>
+                </h2>
+                
+                <!-- Description -->
+                {% if headline.description %}
+                <p class="text-gray-600 text-sm line-clamp-2 mb-2">
+                    {{ headline.description }}
+                </p>
+                {% endif %}
+                
+                <!-- Meta -->
+                <div class="flex items-center gap-4 text-sm text-gray-500">
+                    <time>{{ headline.time }}</time>
+                    {% if headline.url %}
+                    <a href="{{ headline.url }}" target="_blank" rel="noopener" 
+                       class="text-green-600 hover:text-green-800">
+                        Read original →
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if headline.image_url %}
+            <div class="hidden sm:block flex-shrink-0">
+                <img src="{{ headline.image_url }}" alt="" 
+                     class="w-20 h-20 object-cover rounded-lg bg-gray-100"
+                     loading="lazy"
+                     onerror="this.style.display='none'">
+            </div>
+            {% endif %}
+        </div>
+    </article>
+    {% endfor %}
+</div>
+
+{% if not headlines %}
+<div class="text-center py-12">
+    <div class="text-6xl mb-4">🦫</div>
+    <h2 class="text-xl font-semibold text-gray-700 mb-2">No headlines in {{ language_name }}</h2>
+    <p class="text-gray-500">The woodchuck didn't find any news in this language yet.</p>
+    <a href="/" class="inline-block mt-4 text-green-600 hover:text-green-800">
+        ← Back to home
+    </a>
+</div>
+{% endif %}
+{% endblock %}

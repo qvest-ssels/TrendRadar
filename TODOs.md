@@ -130,3 +130,192 @@ Modular translation service supporting both local and remote backends, starting 
   - `GET /languages` - List supported languages
 - **Memory**: ~2GB with all models, ~500MB with limited languages
 - **First startup**: Downloads language models (~1-2GB)
+
+---
+
+## Woodchuck News - Static News Aggregator Frontend 🦫
+
+*"How much news could a woodchuck chuck if a woodchuck could chuck news?"*
+
+A play on Ground News - a static site generator + nginx web server for browsing cached headlines.
+
+### Overview
+- **Subfolder**: `woodchuck-news/`
+- **Architecture**: Python static generator + nginx + Docker
+- **Data source**: MCP API only (HTTP calls to `localhost:3333`)
+- **Output**: Static HTML pages with TailwindCSS
+- **Caching**: nginx serves pre-generated pages
+
+### URL Structure (Option A: Date-first)
+```
+/                                          # Homepage - today's headlines
+/news/2025-11-29/                          # All headlines for date
+/news/2025-11-29/slug-from-title-{id}      # Single article view
+/region/europe/                            # Region index
+/region/europe/2025-11-29/                 # Region + date
+/language/de/                              # Language index  
+/language/de/2025-11-29/                   # Language + date
+/archive/                                  # Date picker / calendar
+```
+
+### Region Mapping (Custom by Continent/Region)
+```yaml
+regions:
+  europe:
+    name: "Europe"
+    subregions:
+      dach: ["spiegel", "heise", "tagesspiegel"]  # DE/AT/CH
+      france: ["lemonde"]
+      uk: ["theguardian"]
+      spain: ["elpais"]
+  
+  asia:
+    name: "Asia"
+    subregions:
+      china: ["toutiao", "baidu", "weibo", "zhihu", "bilibili-hot-search", "douyin"]
+      japan: ["japantimes"]
+      korea: ["koreaherald"]
+      singapore: ["straitstimes"]
+      india: ["timesofindia"]
+  
+  middle_east:
+    name: "Middle East"
+    subregions:
+      gulf: ["aljazeera", "aawsat"]
+      israel: ["timesofisrael"]
+  
+  americas:
+    name: "Americas"
+    subregions:
+      usa: ["slashdot"]
+      brazil: ["folha"]
+      mexico: ["elpais_mexico"]
+  
+  oceania:
+    name: "Oceania"
+    subregions:
+      australia: ["guardianau"]
+  
+  africa:
+    name: "Africa"
+    subregions:
+      south_africa: ["dailymaverick"]
+```
+
+### Phase 1: Infrastructure Setup
+- [ ] **1.1 Create project structure**
+  ```
+  woodchuck-news/
+  ├── docker-compose.yml
+  ├── Dockerfile
+  ├── nginx/
+  │   ├── nginx.conf
+  │   └── sites/
+  │       └── default.conf
+  ├── generator/
+  │   ├── __init__.py
+  │   ├── main.py           # Entry point
+  │   ├── api_client.py     # MCP API client
+  │   ├── models.py         # Data models
+  │   ├── renderer.py       # HTML generation
+  │   └── config.py         # Region mapping, settings
+  ├── templates/
+  │   ├── base.html
+  │   ├── index.html        # Homepage
+  │   ├── date.html         # Date listing
+  │   ├── region.html       # Region listing
+  │   ├── language.html     # Language listing
+  │   └── article.html      # Single article
+  ├── static/
+  │   ├── css/
+  │   │   └── tailwind.css
+  │   └── js/
+  │       └── main.js
+  └── output/               # Generated static files
+      └── .gitkeep
+  ```
+
+- [ ] **1.2 Create Docker setup**
+  - Multi-stage build: Python generator + nginx
+  - Volume for output directory
+  - Health checks
+
+- [ ] **1.3 Create nginx configuration**
+  - Static file serving from `/output`
+  - URL rewriting for clean URLs
+  - Date parsing from URL path
+  - Cache headers for static content
+  - Gzip compression
+
+### Phase 2: Static Generator
+- [ ] **2.1 MCP API Client**
+  - `get_news_by_date(date)` - Fetch headlines
+  - `get_platforms()` - Get platform list
+  - Error handling, retries, timeouts
+
+- [ ] **2.2 URL/Slug Generation**
+  - Slugify titles (ASCII, lowercase, hyphens)
+  - Unique ID suffix (short hash or position)
+  - Example: `eu-announces-new-ai-regulations-a7f3`
+
+- [ ] **2.3 HTML Renderer**
+  - Jinja2 templates
+  - TailwindCSS styling
+  - Responsive design
+  - Dark/light mode
+
+- [ ] **2.4 Generator CLI**
+  ```bash
+  # Generate today
+  python -m generator
+  
+  # Generate specific date
+  python -m generator --date 2025-11-29
+  
+  # Generate date range
+  python -m generator --from 2025-11-01 --to 2025-11-29
+  
+  # Watch mode (regenerate on interval)
+  python -m generator --watch --interval 3600
+  ```
+
+### Phase 3: Page Templates
+- [ ] **3.1 Homepage**
+  - Today's top headlines
+  - Quick region/language filters
+  - Recent dates navigation
+
+- [ ] **3.2 Date listing**
+  - All headlines for a date
+  - Grouped by region or language
+  - Sortable (time, platform, region)
+
+- [ ] **3.3 Region/Language pages**
+  - Headlines filtered by region/language
+  - Platform breakdown within region
+
+- [ ] **3.4 Article page** (optional)
+  - Single headline with metadata
+  - Link to original source
+  - Related headlines (same topic/date)
+
+### Phase 4: Interactive Mode (Future)
+- [ ] **4.1 Local-only features**
+  - Trigger crawl button
+  - Search interface
+  - Translation toggle
+  - Mark as read/bookmark
+
+- [ ] **4.2 API endpoints for interactivity**
+  - `/api/crawl` - Trigger crawl
+  - `/api/translate` - Translate headline
+  - `/api/search` - Search headlines
+
+### Technical Notes
+- **nginx date parsing**: Use `location ~ ^/news/(\d{4}-\d{2}-\d{2})/` regex
+- **Cache strategy**: 
+  - Today's pages: short TTL (5 min)
+  - Historical pages: long TTL (1 day)
+  - Static assets: immutable
+- **TailwindCSS**: Use CDN or build step
+- **ID generation**: `hashlib.sha256(url)[:8]` for stable IDs

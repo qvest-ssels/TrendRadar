@@ -150,3 +150,7 @@ _image/
 config/config.yaml
 uv.lock
 libretranslate-upstream/
+
+# Woodchuck News generated output
+woodchuck-news/output/
+woodchuck-news/.venv/
