@@ -95,6 +95,44 @@
         #chat-messages {
             scroll-behavior: smooth;
         }
+        
+        /* Energy cycle indicator */
+        .energy-indicator {
+            font-size: 1.2rem;
+            cursor: help;
+            transition: transform 0.3s ease;
+        }
+        .energy-indicator:hover {
+            transform: scale(1.3);
+        }
+        .energy-tooltip {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            bottom: 100%;
+            right: 0;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            transition: opacity 0.2s, visibility 0.2s;
+            z-index: 100;
+            margin-bottom: 5px;
+        }
+        .energy-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            right: 15px;
+            border: 6px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.85);
+        }
+        .energy-container:hover .energy-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -109,9 +147,18 @@
                         <p class="text-chat-200 text-sm">AI-powered news assistant</p>
                     </div>
                 </div>
-                <div id="status-indicator" class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-yellow-400" id="status-dot"></span>
-                    <span class="text-sm text-chat-200" id="status-text">Connecting...</span>
+                <div class="flex items-center gap-4">
+                    <div id="status-indicator" class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-yellow-400" id="status-dot"></span>
+                        <span class="text-sm text-chat-200" id="status-text">Connecting...</span>
+                    </div>
+                    <div class="energy-container relative">
+                        <span id="energy-indicator" class="energy-indicator" title="Energy awareness">🌍</span>
+                        <div class="energy-tooltip">
+                            <div id="energy-message">Energy awareness</div>
+                            <div class="text-gray-400 mt-1">Every query uses resources</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
@@ -177,6 +224,15 @@
                 <button onclick="askQuestion('List available news sources')" class="hover:text-chat-600">Sources</button>
             </div>
         </div>
+        
+        <!-- Footer with journalism support message -->
+        <footer class="text-center py-2 text-xs text-gray-400 border-t bg-gray-50">
+            <span>📰 Quality journalism costs money.</span>
+            <span class="mx-1">•</span>
+            <span>Consider <strong>subscribing</strong> to outlets you read.</span>
+            <span class="mx-1">•</span>
+            <span id="query-counter" class="text-gray-500"></span>
+        </footer>
     </div>
     
     <script>
@@ -524,6 +580,48 @@
         // Check status on load and periodically
         checkStatus();
         setInterval(checkStatus, 30000);
+        
+        // Energy cycle indicator
+        const energyCycle = [
+            { emoji: '🌍', message: 'Earth — Our shared home' },
+            { emoji: '💨', message: 'Wind — Renewable energy' },
+            { emoji: '⚡', message: 'Thunder — Power consumption' },
+            { emoji: '🌊', message: 'Wave — Ocean energy' },
+            { emoji: '☀️', message: 'Solar — Clean power' },
+            { emoji: '💻', message: 'Computer — Using energy now' },
+            { emoji: '☢️', message: 'Nuclear — Powerful, controversial' },
+            { emoji: '🌳', message: 'Tree — Carbon capture' },
+            { emoji: '🪨', message: 'Coal — Fossil fuel reality' },
+            { emoji: '💎', message: 'Diamond — Pressure creates value' },
+            { emoji: '💣', message: 'Bomb — Energy\'s dark side' },
+            { emoji: '🦖', message: 'Dinosaur — Origin of fossil fuels' }
+        ];
+        let energyIndex = 0;
+        let queryCount = 0;
+        const energyIndicator = document.getElementById('energy-indicator');
+        const energyMessage = document.getElementById('energy-message');
+        
+        function advanceEnergyCycle() {
+            energyIndex = (energyIndex + 1) % energyCycle.length;
+            const current = energyCycle[energyIndex];
+            energyIndicator.textContent = current.emoji;
+            energyMessage.textContent = current.message;
+        }
+        
+        // Advance on each query sent
+        const originalSendMessage = sendMessage;
+        const queryCounter = document.getElementById('query-counter');
+        sendMessage = async function(userMessage) {
+            if (userMessage.trim()) {
+                queryCount++;
+                advanceEnergyCycle();
+                queryCounter.textContent = `Queries: ${queryCount}`;
+            }
+            return originalSendMessage(userMessage);
+        };
+        
+        // Also advance slowly in background (every 30s)
+        setInterval(advanceEnergyCycle, 30000);
         
         // Focus input on load
         userInput.focus();
