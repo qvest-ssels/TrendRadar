@@ -1,4 +1,8 @@
-.PHONY: test test-verbose clean help start-server stop-server server-status start-rest-api stop-rest-api start-ollama stop-ollama ollama-status start-news-chat stop-news-chat news-chat-status start-all stop-all status
+.PHONY: test test-verbose clean help start-server stop-server server-status start-rest-api stop-rest-api start-ollama stop-ollama ollama-status start-news-chat stop-news-chat news-chat-status start-woodchuck-server stop-woodchuck-server woodchuck-status generate-woodchuck start-all stop-all status
+
+# Variables
+UV := uv
+PYTHON := python
 
 # Default target
 help:
@@ -31,6 +35,12 @@ help:
 	@echo "  start-news-chat - Start News Chat web service"
 	@echo "  stop-news-chat  - Stop News Chat web service"
 	@echo "  news-chat-status - Check News Chat status"
+	@echo ""
+	@echo "  === Woodchuck News (port 8080) ==="
+	@echo "  start-woodchuck-server   - Start static site server"
+	@echo "  stop-woodchuck-server    - Stop static site server"
+	@echo "  woodchuck-status         - Check Woodchuck News status"
+	@echo "  generate-woodchuck       - Regenerate static site"
 	@echo ""
 	@echo "  === Convenience ==="
 	@echo "  start-all      - Start all services (REST API + News Chat)"
@@ -130,15 +140,6 @@ test-crawl:
 		exit 1; \
 	fi
 	./.venv/bin/python main.py --test-crawl $(PLATFORM)
-
-# Clean up cache files
-clean:
-	find . -type d -name "__pycache__" -exec rm -rf {} +
-	find . -type f -name "*.pyc" -delete
-	find . -type f -name "*.pyo" -delete
-	find . -type f -name "*.pyd" -delete
-	find . -type d -name "*.egg-info" -exec rm -rf {} +
-	find . -type d -name ".pytest_cache" -exec rm -rf {} +
 
 # Start REST API wrapper for News Chat (port 3334, MCP is on 3333)
 start-rest-api:
@@ -260,6 +261,50 @@ news-chat-status:
 		fi; \
 	fi
 
+# ==================== Woodchuck News Static Site ====================
+
+# Generate Woodchuck News static site from output data
+generate-woodchuck:
+	@echo "Generating Woodchuck News static site..."
+	cd woodchuck-news && $(UV) run python -m generator.generator
+	@echo "Static site generated in woodchuck-news/output/"
+
+# Start Woodchuck News development server (port 8080)
+start-woodchuck-server:
+	@echo "Starting Woodchuck News server on http://localhost:8080..."
+	@if [ -f woodchuck-news/.woodchuck.pid ] && kill -0 `cat woodchuck-news/.woodchuck.pid` 2>/dev/null; then \
+		echo "Woodchuck News server is already running (PID: `cat woodchuck-news/.woodchuck.pid`)"; \
+	else \
+		$(UV) run python -m http.server 8080 --directory woodchuck-news/output > /dev/null 2>&1 & echo $$! > woodchuck-news/.woodchuck.pid; \
+		sleep 1; \
+		echo "Woodchuck News server started (PID: `cat woodchuck-news/.woodchuck.pid`)"; \
+		echo "Web UI: http://localhost:8080"; \
+	fi
+
+# Stop Woodchuck News development server
+stop-woodchuck-server:
+	@if [ -f woodchuck-news/.woodchuck.pid ]; then \
+		if kill -0 `cat woodchuck-news/.woodchuck.pid` 2>/dev/null; then \
+			kill `cat woodchuck-news/.woodchuck.pid` 2>/dev/null || true; \
+			echo "Woodchuck News server stopped"; \
+		fi; \
+		rm -f woodchuck-news/.woodchuck.pid; \
+	else \
+		echo "Woodchuck News server is not running"; \
+	fi
+
+# Check Woodchuck News server status
+woodchuck-status:
+	@if [ -f woodchuck-news/.woodchuck.pid ] && kill -0 `cat woodchuck-news/.woodchuck.pid` 2>/dev/null; then \
+		echo "Woodchuck News server is running (PID: `cat woodchuck-news/.woodchuck.pid`)"; \
+		echo "Web UI: http://localhost:8080"; \
+	else \
+		echo "Woodchuck News server is not running"; \
+		if [ -f woodchuck-news/.woodchuck.pid ]; then \
+			rm -f woodchuck-news/.woodchuck.pid; \
+		fi; \
+	fi
+
 # Start all services (Ollama + REST API + News Chat)
 start-all: start-ollama start-rest-api start-news-chat
 	@echo ""
@@ -285,6 +330,9 @@ status: server-status
 	@echo ""
 	@echo "=== News Chat (port 8000) ==="
 	@$(MAKE) -s news-chat-status
+	@echo ""
+	@echo "=== Woodchuck News (port 8080) ==="
+	@$(MAKE) -s woodchuck-status
 
 # Test News Chat service
 test-news-chat:
@@ -302,3 +350,4 @@ clean:
 	find . -type d -name ".coverage" -exec rm -rf {} + 2>/dev/null || true
 	rm -f .mcp_server.pid .mcp_server.log .rest_api.pid .rest_api.log
 	rm -f news-chat/.news_chat.pid news-chat/.news_chat.log news-chat/server.log
+	rm -f woodchuck-news/.woodchuck.pid
