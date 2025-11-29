@@ -1099,6 +1099,100 @@ async def trigger_crawl(
     return json.dumps(result, ensure_ascii=False, indent=2)
 
 
+# ==================== Woodchuck News 页面索引 ====================
+
+@mcp.tool
+async def get_woodchuck_pages(
+    page_type: Optional[str] = None,
+    region: Optional[str] = None,
+    language: Optional[str] = None
+) -> str:
+    """
+    获取 Woodchuck News 静态网站的页面索引
+
+    此工具返回所有可用的静态页面，便于向用户推荐相关内容。
+
+    Args:
+        page_type: 按页面类型过滤，可选值：
+            - "home": 首页
+            - "date": 按日期分类的页面
+            - "region": 按地区分类的页面
+            - "language": 按语言分类的页面
+            - "source": 单个新闻源页面
+            - "sources_index": 新闻源索引页
+        region: 按地区过滤，可选值：europe, asia, americas, middle_east, eurasia, oceania, other
+        language: 按语言过滤，可选值：en, de, zh, ja, ko, es, ar
+
+    Returns:
+        JSON格式的页面列表，包含：
+        - path: 页面路径
+        - title: 页面标题
+        - type: 页面类型
+        - description: 页面描述
+        - headline_count: 新闻数量（如适用）
+
+    Examples:
+        - 获取所有页面: get_woodchuck_pages()
+        - 获取日期页面: get_woodchuck_pages(page_type="date")
+        - 获取欧洲新闻页面: get_woodchuck_pages(region="europe")
+        - 获取中文新闻页面: get_woodchuck_pages(language="zh")
+    """
+    import os
+    from pathlib import Path
+    
+    # Try to find pages_index.json
+    possible_paths = [
+        Path(os.path.dirname(__file__)).parent / "woodchuck-news" / "output" / "pages_index.json",
+        Path("/app/woodchuck-news/output/pages_index.json"),
+        Path("./woodchuck-news/output/pages_index.json"),
+    ]
+    
+    index_path = None
+    for p in possible_paths:
+        if p.exists():
+            index_path = p
+            break
+    
+    if not index_path:
+        return json.dumps({
+            "success": False,
+            "error": "pages_index.json not found. Run the Woodchuck News generator first.",
+            "searched_paths": [str(p) for p in possible_paths]
+        }, ensure_ascii=False, indent=2)
+    
+    try:
+        with open(index_path, 'r', encoding='utf-8') as f:
+            index_data = json.load(f)
+        
+        pages = index_data.get("pages", [])
+        
+        # Apply filters
+        if page_type:
+            pages = [p for p in pages if p.get("type") == page_type]
+        if region:
+            pages = [p for p in pages if p.get("region") == region]
+        if language:
+            pages = [p for p in pages if p.get("language") == language]
+        
+        return json.dumps({
+            "success": True,
+            "generated_at": index_data.get("generated_at"),
+            "total_pages": len(pages),
+            "pages": pages,
+            "filters_applied": {
+                "page_type": page_type,
+                "region": region,
+                "language": language
+            }
+        }, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": f"Error reading pages_index.json: {str(e)}"
+        }, ensure_ascii=False, indent=2)
+
+
 # ==================== 启动入口 ====================
 
 def run_server(

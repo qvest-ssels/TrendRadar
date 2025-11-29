@@ -150,6 +150,34 @@ MCP_TOOLS = [
                 "required": ["text", "target_language"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_woodchuck_pages",
+            "description": "Get the index of available Woodchuck News pages. Use this to find what static pages are available to recommend to users.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "page_type": {
+                        "type": "string",
+                        "enum": ["home", "date", "region", "language", "source", "sources_index"],
+                        "description": "Filter by page type"
+                    },
+                    "region": {
+                        "type": "string",
+                        "enum": ["europe", "asia", "americas", "middle_east", "eurasia", "oceania", "other"],
+                        "description": "Filter by region"
+                    },
+                    "language": {
+                        "type": "string",
+                        "enum": ["en", "de", "zh", "ja", "ko", "es", "ar"],
+                        "description": "Filter by language"
+                    }
+                },
+                "required": []
+            }
+        }
     }
 ]
 
@@ -163,12 +191,14 @@ You can help users:
 - Analyze how topics are being covered in the media
 - Translate headlines between languages
 - Compare coverage across different news sources
+- Browse available Woodchuck News pages by region, language, or date
 
 When users ask about news, use the available tools to fetch real data. Always:
 1. Use search_news for topic-specific queries
 2. Use get_news_by_date for daily overviews
 3. Use get_trending_topics for trend analysis
-4. Cite sources when presenting news
+4. Use get_woodchuck_pages to recommend relevant static pages
+5. Cite sources when presenting news
 
 Available regions: Europe, Eurasia, Asia-Pacific, Americas, Middle East, Oceania
 Available languages: Chinese (zh), English (en), German (de), Japanese (ja), Korean (ko), Spanish (es), Arabic (ar)

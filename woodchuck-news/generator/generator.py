@@ -505,6 +505,99 @@ class WoodchuckGenerator:
             shutil.copytree(STATIC_DIR, dest)
             print(f"Copied static assets to: {dest}")
     
+    def generate_pages_index(self, grouped: dict):
+        """Generate pages_index.json for the chat agent to query available pages."""
+        pages = []
+        
+        # Home page
+        pages.append({
+            "path": "/",
+            "title": "Woodchuck News - Home",
+            "type": "home",
+            "description": "Main page showing recent headlines from all sources"
+        })
+        
+        # Date pages
+        for date in sorted(grouped["by_date"].keys(), reverse=True):
+            count = len(grouped["by_date"][date])
+            pages.append({
+                "path": f"/news/{date}/",
+                "title": f"News from {date}",
+                "type": "date",
+                "date": date,
+                "headline_count": count,
+                "description": f"All {count} headlines from {date}"
+            })
+        
+        # Region pages
+        for region, headlines in grouped["by_region"].items():
+            region_name = REGION_NAMES.get(region, region.title())
+            count = len(headlines)
+            pages.append({
+                "path": f"/region/{region}/",
+                "title": f"{region_name} News",
+                "type": "region",
+                "region": region,
+                "region_name": region_name,
+                "headline_count": count,
+                "description": f"{count} headlines from {region_name} sources"
+            })
+        
+        # Language pages
+        for lang, headlines in grouped["by_language"].items():
+            lang_name = LANGUAGE_NAMES.get(lang, lang.upper())
+            count = len(headlines)
+            pages.append({
+                "path": f"/language/{lang}/",
+                "title": f"{lang_name} News",
+                "type": "language",
+                "language": lang,
+                "language_name": lang_name,
+                "headline_count": count,
+                "description": f"{count} headlines in {lang_name}"
+            })
+        
+        # Source index
+        pages.append({
+            "path": "/source/",
+            "title": "All News Sources",
+            "type": "sources_index",
+            "source_count": len(grouped["by_platform"]),
+            "description": f"Index of all {len(grouped['by_platform'])} news sources"
+        })
+        
+        # Individual source pages
+        for platform, headlines in grouped["by_platform"].items():
+            if headlines:
+                platform_name = headlines[0].get("platform_name", platform)
+                region = headlines[0].get("region", "other")
+                lang = headlines[0].get("language", "en")
+                count = len(headlines)
+                pages.append({
+                    "path": f"/source/{platform}/",
+                    "title": f"{platform_name}",
+                    "type": "source",
+                    "source_id": platform,
+                    "source_name": platform_name,
+                    "region": region,
+                    "language": lang,
+                    "headline_count": count,
+                    "description": f"{count} headlines from {platform_name}"
+                })
+        
+        # Write JSON index
+        index_data = {
+            "generated_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "total_pages": len(pages),
+            "pages": pages
+        }
+        
+        output_file = OUTPUT_DIR / "pages_index.json"
+        output_file.write_text(json.dumps(index_data, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"Generated: {output_file}")
+        
+        return index_data
+    
     def generate(self, date: str | None = None):
         """Main generation method."""
         print(f"🦫 Woodchuck News Generator starting...")
@@ -564,6 +657,7 @@ class WoodchuckGenerator:
         self.generate_region_pages(grouped)
         self.generate_language_pages(grouped)
         self.generate_source_pages(grouped)
+        self.generate_pages_index(grouped)
         
         # Copy static assets
         self.copy_static_assets()

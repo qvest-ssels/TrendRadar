@@ -23,6 +23,7 @@ from .server import (
     analyze_sentiment,
     search_news,
     generate_summary_report,
+    get_woodchuck_pages,
 )
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,7 @@ async def list_tools():
             {"name": "analyze_sentiment", "description": "Analyze sentiment of headlines"},
             {"name": "search_news", "description": "Search news headlines by keyword"},
             {"name": "generate_summary_report", "description": "Generate a summary report"},
+            {"name": "get_woodchuck_pages", "description": "Get Woodchuck News page index"},
         ]
     }
 
@@ -143,6 +145,13 @@ async def call_tool(tool_name: str, request: ToolRequest):
                 date=args.get("date", "today"),
                 include_sentiment=args.get("include_sentiment", True),
                 max_topics=args.get("max_topics", 10)
+            )
+        
+        elif tool_name == "get_woodchuck_pages":
+            result = await get_woodchuck_pages.fn(
+                page_type=args.get("page_type"),
+                region=args.get("region"),
+                language=args.get("language")
             )
         
         else:

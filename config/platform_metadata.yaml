@@ -1,0 +1,314 @@
+# Platform Metadata for TrendRadar News Sources
+# This file contains additional metadata for each news platform
+# including homepage, Wikipedia page, country, type, and founding year.
+#
+# Note: This is separate from config.yaml to keep configuration clean.
+# The platform_id must match the id in config.yaml
+
+platforms:
+  # ==================== Chinese Sources ====================
+  toutiao:
+    homepage: "https://www.toutiao.com"
+    wikipedia: "https://en.wikipedia.org/wiki/Toutiao"
+    country: "CN"
+    region: "asia"
+    type: "aggregator"
+    founded: 2012
+    parent_company: "ByteDance"
+    
+  baidu:
+    homepage: "https://www.baidu.com"
+    wikipedia: "https://en.wikipedia.org/wiki/Baidu"
+    country: "CN"
+    region: "asia"
+    type: "search_engine"
+    founded: 2000
+    
+  wallstreetcn-hot:
+    homepage: "https://wallstreetcn.com"
+    wikipedia: null
+    country: "CN"
+    region: "asia"
+    type: "financial_news"
+    founded: 2010
+    
+  thepaper:
+    homepage: "https://www.thepaper.cn"
+    wikipedia: "https://en.wikipedia.org/wiki/The_Paper_(news_website)"
+    country: "CN"
+    region: "asia"
+    type: "newspaper"
+    founded: 2014
+    parent_company: "Shanghai United Media Group"
+    
+  bilibili-hot-search:
+    homepage: "https://www.bilibili.com"
+    wikipedia: "https://en.wikipedia.org/wiki/Bilibili"
+    country: "CN"
+    region: "asia"
+    type: "video_platform"
+    founded: 2009
+    
+  cls-hot:
+    homepage: "https://www.cls.cn"
+    wikipedia: null
+    country: "CN"
+    region: "asia"
+    type: "financial_news"
+    founded: 2009
+    description: "China's leading financial news terminal"
+    
+  ifeng:
+    homepage: "https://www.ifeng.com"
+    wikipedia: "https://en.wikipedia.org/wiki/Phoenix_New_Media"
+    country: "CN"
+    region: "asia"
+    type: "news_portal"
+    founded: 1998
+    parent_company: "Phoenix New Media"
+    
+  tieba:
+    homepage: "https://tieba.baidu.com"
+    wikipedia: "https://en.wikipedia.org/wiki/Baidu_Tieba"
+    country: "CN"
+    region: "asia"
+    type: "forum"
+    founded: 2003
+    parent_company: "Baidu"
+    
+  weibo:
+    homepage: "https://weibo.com"
+    wikipedia: "https://en.wikipedia.org/wiki/Sina_Weibo"
+    country: "CN"
+    region: "asia"
+    type: "social_media"
+    founded: 2009
+    parent_company: "Sina Corporation"
+    
+  douyin:
+    homepage: "https://www.douyin.com"
+    wikipedia: "https://en.wikipedia.org/wiki/Douyin"
+    country: "CN"
+    region: "asia"
+    type: "video_platform"
+    founded: 2016
+    parent_company: "ByteDance"
+    
+  zhihu:
+    homepage: "https://www.zhihu.com"
+    wikipedia: "https://en.wikipedia.org/wiki/Zhihu"
+    country: "CN"
+    region: "asia"
+    type: "q_and_a"
+    founded: 2011
+
+  # ==================== German Sources ====================
+  spiegel:
+    homepage: "https://www.spiegel.de"
+    wikipedia: "https://en.wikipedia.org/wiki/Der_Spiegel"
+    country: "DE"
+    region: "europe"
+    type: "magazine"
+    founded: 1947
+    headquarters: "Hamburg"
+    
+  tagesspiegel:
+    homepage: "https://www.tagesspiegel.de"
+    wikipedia: "https://en.wikipedia.org/wiki/Der_Tagesspiegel"
+    country: "DE"
+    region: "europe"
+    type: "newspaper"
+    founded: 1945
+    headquarters: "Berlin"
+    
+  heise:
+    homepage: "https://www.heise.de"
+    wikipedia: "https://en.wikipedia.org/wiki/Heise_Online"
+    country: "DE"
+    region: "europe"
+    type: "tech_news"
+    founded: 1983
+    headquarters: "Hanover"
+
+  # ==================== UK/English Sources ====================
+  theguardian:
+    homepage: "https://www.theguardian.com"
+    wikipedia: "https://en.wikipedia.org/wiki/The_Guardian"
+    country: "GB"
+    region: "europe"
+    type: "newspaper"
+    founded: 1821
+    headquarters: "London"
+    political_leaning: "centre-left"
+    
+  guardianau:
+    homepage: "https://www.theguardian.com/australia-news"
+    wikipedia: "https://en.wikipedia.org/wiki/The_Guardian"
+    country: "AU"
+    region: "oceania"
+    type: "newspaper"
+    founded: 2013
+    parent_company: "Guardian Media Group"
+    headquarters: "Sydney"
+
+  # ==================== US Sources ====================
+  slashdot:
+    homepage: "https://slashdot.org"
+    wikipedia: "https://en.wikipedia.org/wiki/Slashdot"
+    country: "US"
+    region: "americas"
+    type: "tech_news"
+    founded: 1997
+    description: "News for nerds, stuff that matters"
+
+  # ==================== French Sources ====================
+  lemonde:
+    homepage: "https://www.lemonde.fr"
+    wikipedia: "https://en.wikipedia.org/wiki/Le_Monde"
+    country: "FR"
+    region: "europe"
+    type: "newspaper"
+    founded: 1944
+    headquarters: "Paris"
+    political_leaning: "centre-left"
+
+  # ==================== Indian Sources ====================
+  timesofindia:
+    homepage: "https://timesofindia.indiatimes.com"
+    wikipedia: "https://en.wikipedia.org/wiki/The_Times_of_India"
+    country: "IN"
+    region: "asia"
+    type: "newspaper"
+    founded: 1838
+    headquarters: "Mumbai"
+    description: "India's largest English daily"
+
+  # ==================== Russian Sources ====================
+  moscowtimes:
+    homepage: "https://www.themoscowtimes.com"
+    wikipedia: "https://en.wikipedia.org/wiki/The_Moscow_Times"
+    country: "RU"
+    region: "eurasia"
+    type: "newspaper"
+    founded: 1992
+    headquarters: "Amsterdam (relocated)"
+    description: "Independent English-language news about Russia"
+
+  # ==================== Brazilian Sources ====================
+  folha:
+    homepage: "https://www.folha.uol.com.br"
+    wikipedia: "https://en.wikipedia.org/wiki/Folha_de_S.Paulo"
+    country: "BR"
+    region: "americas"
+    type: "newspaper"
+    founded: 1921
+    headquarters: "São Paulo"
+    description: "Brazil's largest newspaper"
+
+  # ==================== South African Sources ====================
+  dailymaverick:
+    homepage: "https://www.dailymaverick.co.za"
+    wikipedia: "https://en.wikipedia.org/wiki/Daily_Maverick"
+    country: "ZA"
+    region: "africa"
+    type: "online_news"
+    founded: 2009
+    headquarters: "Johannesburg"
+
+  # ==================== Southeast Asian Sources ====================
+  straitstimes:
+    homepage: "https://www.straitstimes.com"
+    wikipedia: "https://en.wikipedia.org/wiki/The_Straits_Times"
+    country: "SG"
+    region: "asia"
+    type: "newspaper"
+    founded: 1845
+    headquarters: "Singapore"
+    parent_company: "Singapore Press Holdings"
+
+  # ==================== Middle Eastern Sources ====================
+  aawsat:
+    homepage: "https://english.aawsat.com"
+    wikipedia: "https://en.wikipedia.org/wiki/Asharq_Al-Awsat"
+    country: "SA"
+    region: "middle_east"
+    type: "newspaper"
+    founded: 1978
+    headquarters: "London"
+    description: "Pan-Arab international newspaper"
+    
+  aljazeera:
+    homepage: "https://www.aljazeera.com"
+    wikipedia: "https://en.wikipedia.org/wiki/Al_Jazeera"
+    country: "QA"
+    region: "middle_east"
+    type: "news_network"
+    founded: 1996
+    headquarters: "Doha"
+    
+  timesofisrael:
+    homepage: "https://www.timesofisrael.com"
+    wikipedia: "https://en.wikipedia.org/wiki/The_Times_of_Israel"
+    country: "IL"
+    region: "eurasia"
+    type: "online_news"
+    founded: 2012
+    headquarters: "Jerusalem"
+
+  # ==================== Japanese Sources ====================
+  japantimes:
+    homepage: "https://www.japantimes.co.jp"
+    wikipedia: "https://en.wikipedia.org/wiki/The_Japan_Times"
+    country: "JP"
+    region: "asia"
+    type: "newspaper"
+    founded: 1897
+    headquarters: "Tokyo"
+    description: "Japan's oldest English-language newspaper"
+
+  # ==================== Korean Sources ====================
+  koreaherald:
+    homepage: "https://www.koreaherald.com"
+    wikipedia: "https://en.wikipedia.org/wiki/The_Korea_Herald"
+    country: "KR"
+    region: "asia"
+    type: "newspaper"
+    founded: 1953
+    headquarters: "Seoul"
+    description: "Korea's largest English-language daily"
+
+  # ==================== Spanish Sources ====================
+  elpais:
+    homepage: "https://elpais.com"
+    wikipedia: "https://en.wikipedia.org/wiki/El_Pa%C3%ADs"
+    country: "ES"
+    region: "europe"
+    type: "newspaper"
+    founded: 1976
+    headquarters: "Madrid"
+    political_leaning: "centre-left"
+    description: "Spain's largest daily newspaper"
+    
+  elpais_mexico:
+    homepage: "https://elpais.com/mexico/"
+    wikipedia: "https://en.wikipedia.org/wiki/El_Pa%C3%ADs"
+    country: "MX"
+    region: "americas"
+    type: "newspaper"
+    founded: 2016
+    headquarters: "Mexico City"
+    parent_company: "PRISA"
+
+# Type definitions for reference
+# - newspaper: Traditional print newspaper with online presence
+# - magazine: News magazine
+# - news_network: TV/Online news network
+# - tech_news: Technology-focused news site
+# - financial_news: Finance and business news
+# - aggregator: News aggregation platform
+# - social_media: Social media platform with trending topics
+# - video_platform: Video sharing platform
+# - forum: Discussion forum
+# - q_and_a: Question and answer platform
+# - online_news: Online-only news publication
+# - search_engine: Search engine with trending topics

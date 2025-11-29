@@ -55,6 +55,51 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
         }
+        
+        /* Chat widget styles */
+        .chat-container {
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        .chat-container.expanded {
+            max-height: 500px;
+            opacity: 1;
+        }
+        .chat-messages {
+            height: 300px;
+            overflow-y: auto;
+        }
+        .chat-message {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .typing-indicator span {
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-dot.connected { background-color: #22c55e; }
+        .status-dot.disconnected { background-color: #ef4444; }
+        .status-dot.checking { background-color: #f59e0b; animation: pulse 1s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
     </style>
     
     {% block extra_head %}{% endblock %}
@@ -140,6 +185,75 @@
         </div>
     </nav>
     
+    <!-- Chat Widget -->
+    <div id="chat-widget" class="bg-gradient-to-r from-woodchuck-100 to-woodchuck-50 border-b border-woodchuck-200">
+        <!-- Chat Toggle Bar -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <button id="chat-toggle" class="w-full py-3 flex items-center justify-between text-woodchuck-800 hover:text-woodchuck-900 transition-colors">
+                <div class="flex items-center space-x-3">
+                    <span class="text-xl">💬</span>
+                    <span class="font-medium">Ask Woodchuck AI</span>
+                    <span id="chat-status" class="flex items-center text-sm text-woodchuck-600">
+                        <span id="status-dot" class="status-dot checking mr-2"></span>
+                        <span id="status-text">Checking...</span>
+                    </span>
+                </div>
+                <svg id="chat-chevron" class="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Chat Container (collapsed by default) -->
+        <div id="chat-container" class="chat-container">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+                <!-- Error Message (hidden by default) -->
+                <div id="chat-error" class="hidden mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                        <span id="chat-error-text">News Chat service is not available. Please try again later.</span>
+                    </div>
+                </div>
+                
+                <!-- Chat Messages -->
+                <div id="chat-messages" class="chat-messages bg-white rounded-lg border border-woodchuck-200 p-4 mb-4">
+                    <div class="chat-message text-gray-500 text-sm text-center py-8">
+                        <p class="mb-2">🦫 Hi! I'm Woodchuck AI.</p>
+                        <p>Ask me about the news! Try:</p>
+                        <p class="mt-2 text-woodchuck-600 italic">"What are the latest headlines?"</p>
+                        <p class="text-woodchuck-600 italic">"Show me news from Europe"</p>
+                        <p class="text-woodchuck-600 italic">"Translate this headline to English"</p>
+                    </div>
+                </div>
+                
+                <!-- Chat Input -->
+                <form id="chat-form" class="flex space-x-3">
+                    <input 
+                        type="text" 
+                        id="chat-input" 
+                        placeholder="Ask about news..." 
+                        class="flex-1 px-4 py-2 border border-woodchuck-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-woodchuck-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        disabled
+                    >
+                    <button 
+                        type="submit" 
+                        id="chat-submit"
+                        class="px-6 py-2 bg-woodchuck-700 text-white rounded-lg hover:bg-woodchuck-800 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
+                        disabled
+                    >
+                        <span id="submit-text">Send</span>
+                        <svg id="submit-spinner" class="hidden w-5 h-5 animate-spin ml-2" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {% block content %}{% endblock %}
@@ -194,6 +308,227 @@
         // Mobile menu toggle
         document.getElementById('mobile-menu-btn').addEventListener('click', function() {
             document.getElementById('mobile-menu').classList.toggle('hidden');
+        });
+        
+        // Chat Widget Configuration
+        const CHAT_API_URL = window.CHAT_API_URL || 'http://localhost:8000';
+        
+        // Chat Widget State
+        const chatState = {
+            connected: false,
+            expanded: false,
+            sending: false,
+            messages: []
+        };
+        
+        // DOM Elements
+        const chatToggle = document.getElementById('chat-toggle');
+        const chatContainer = document.getElementById('chat-container');
+        const chatChevron = document.getElementById('chat-chevron');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const chatSubmit = document.getElementById('chat-submit');
+        const chatError = document.getElementById('chat-error');
+        const chatErrorText = document.getElementById('chat-error-text');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const submitText = document.getElementById('submit-text');
+        const submitSpinner = document.getElementById('submit-spinner');
+        
+        // Check Chat Service Status
+        async function checkChatStatus() {
+            statusDot.className = 'status-dot checking';
+            statusText.textContent = 'Checking...';
+            
+            try {
+                const response = await fetch(`${CHAT_API_URL}/api/status`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.ollama?.connected && data.mcp?.connected) {
+                        setConnected(true, `Connected (${data.ollama.model})`);
+                    } else {
+                        const issues = [];
+                        if (!data.ollama?.connected) issues.push('LLM');
+                        if (!data.mcp?.connected) issues.push('MCP');
+                        setConnected(false, `Disconnected: ${issues.join(', ')}`);
+                    }
+                } else {
+                    setConnected(false, 'Service unavailable');
+                }
+            } catch (error) {
+                setConnected(false, 'Cannot connect');
+            }
+        }
+        
+        function setConnected(connected, message) {
+            chatState.connected = connected;
+            statusDot.className = `status-dot ${connected ? 'connected' : 'disconnected'}`;
+            statusText.textContent = message;
+            chatInput.disabled = !connected;
+            chatSubmit.disabled = !connected;
+            
+            if (!connected) {
+                chatError.classList.remove('hidden');
+                chatErrorText.textContent = `News Chat service is not available: ${message}`;
+            } else {
+                chatError.classList.add('hidden');
+            }
+        }
+        
+        // Toggle Chat Panel
+        chatToggle.addEventListener('click', function() {
+            chatState.expanded = !chatState.expanded;
+            chatContainer.classList.toggle('expanded', chatState.expanded);
+            chatChevron.classList.toggle('rotate-180', chatState.expanded);
+            
+            if (chatState.expanded && chatState.connected) {
+                chatInput.focus();
+            }
+        });
+        
+        // Add Message to Chat
+        function addMessage(role, content, isStreaming = false) {
+            const isUser = role === 'user';
+            const messageId = `msg-${Date.now()}`;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.id = messageId;
+            messageDiv.className = `chat-message mb-3 ${isUser ? 'text-right' : 'text-left'}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = `inline-block max-w-[80%] px-4 py-2 rounded-lg ${
+                isUser 
+                    ? 'bg-woodchuck-700 text-white' 
+                    : 'bg-gray-100 text-gray-800'
+            }`;
+            
+            if (isStreaming) {
+                bubble.innerHTML = '<div class="typing-indicator flex space-x-1"><span class="w-2 h-2 bg-woodchuck-500 rounded-full"></span><span class="w-2 h-2 bg-woodchuck-500 rounded-full"></span><span class="w-2 h-2 bg-woodchuck-500 rounded-full"></span></div>';
+            } else {
+                bubble.textContent = content;
+            }
+            
+            messageDiv.appendChild(bubble);
+            
+            // Remove welcome message if exists
+            const welcome = chatMessages.querySelector('.text-center');
+            if (welcome) welcome.remove();
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return messageId;
+        }
+        
+        // Update Streaming Message
+        function updateMessage(messageId, content) {
+            const messageDiv = document.getElementById(messageId);
+            if (messageDiv) {
+                const bubble = messageDiv.querySelector('div');
+                bubble.textContent = content;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        }
+        
+        // Send Chat Message
+        async function sendMessage(message) {
+            if (!chatState.connected || chatState.sending || !message.trim()) return;
+            
+            chatState.sending = true;
+            chatInput.disabled = true;
+            chatSubmit.disabled = true;
+            submitText.textContent = 'Sending...';
+            submitSpinner.classList.remove('hidden');
+            
+            // Add user message
+            addMessage('user', message);
+            
+            // Add assistant placeholder
+            const assistantMsgId = addMessage('assistant', '', true);
+            
+            let fullResponse = '';
+            
+            try {
+                const response = await fetch(`${CHAT_API_URL}/api/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'text/event-stream'
+                    },
+                    body: JSON.stringify({ message })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                if (data.content) {
+                                    fullResponse += data.content;
+                                    updateMessage(assistantMsgId, fullResponse);
+                                } else if (data.tool_call) {
+                                    // Show tool call indication
+                                    updateMessage(assistantMsgId, `🔧 ${data.tool_call}...`);
+                                } else if (data.error) {
+                                    updateMessage(assistantMsgId, `⚠️ ${data.error}`);
+                                }
+                            } catch (e) {
+                                // Ignore JSON parse errors for incomplete chunks
+                            }
+                        }
+                    }
+                }
+                
+                if (!fullResponse) {
+                    updateMessage(assistantMsgId, 'No response received. Please try again.');
+                }
+                
+            } catch (error) {
+                updateMessage(assistantMsgId, `⚠️ Error: ${error.message}`);
+                console.error('Chat error:', error);
+            } finally {
+                chatState.sending = false;
+                chatInput.disabled = false;
+                chatSubmit.disabled = false;
+                submitText.textContent = 'Send';
+                submitSpinner.classList.add('hidden');
+                chatInput.focus();
+            }
+        }
+        
+        // Handle Form Submit
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if (message) {
+                sendMessage(message);
+                chatInput.value = '';
+            }
+        });
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkChatStatus();
+            // Re-check status every 30 seconds
+            setInterval(checkChatStatus, 30000);
         });
     </script>
     
