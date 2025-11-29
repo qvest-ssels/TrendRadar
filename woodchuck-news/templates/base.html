@@ -108,6 +108,44 @@
         .chat-message a:hover {
             color: #1d4ed8;
         }
+        
+        /* Energy cycle indicator */
+        .energy-indicator {
+            font-size: 1.1rem;
+            cursor: help;
+            transition: transform 0.3s ease;
+        }
+        .energy-indicator:hover {
+            transform: scale(1.3);
+        }
+        .energy-tooltip {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            bottom: 100%;
+            right: 0;
+            background: rgba(67, 48, 43, 0.95);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            transition: opacity 0.2s, visibility 0.2s;
+            z-index: 100;
+            margin-bottom: 5px;
+        }
+        .energy-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            right: 12px;
+            border: 5px solid transparent;
+            border-top-color: rgba(67, 48, 43, 0.95);
+        }
+        .energy-container:hover .energy-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
     </style>
     
     {% block extra_head %}{% endblock %}
@@ -206,9 +244,18 @@
                         <span id="status-text">Checking...</span>
                     </span>
                 </div>
-                <svg id="chat-chevron" class="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
+                <div class="flex items-center space-x-3">
+                    <div class="energy-container relative">
+                        <span id="energy-indicator" class="energy-indicator" title="Energy awareness">🌍</span>
+                        <div class="energy-tooltip">
+                            <div id="energy-message">Energy awareness</div>
+                            <div class="text-woodchuck-300 mt-1">Every query uses resources</div>
+                        </div>
+                    </div>
+                    <svg id="chat-chevron" class="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
             </button>
         </div>
         
@@ -314,6 +361,7 @@
             </div>
             
             <div class="border-t border-woodchuck-800 mt-8 pt-8 text-center text-woodchuck-400 text-sm">
+                <p class="mb-2">📰 Quality journalism costs money. Consider <strong class="text-woodchuck-300">subscribing</strong> to outlets you read.</p>
                 <p>Generated: {{ generated_at }}</p>
                 <p class="mt-2">Powered by TrendRadar MCP • Static site generated with 🦫</p>
             </div>
@@ -631,6 +679,80 @@
             // Re-check status every 30 seconds
             setInterval(checkChatStatus, 30000);
         });
+        
+        // Energy cycle indicator - 28 emojis telling the energy story
+        const energyCycle = [
+            { emoji: '🌍', message: 'Earth — Our shared home' },
+            { emoji: '💨', message: 'Wind — Renewable energy' },
+            { emoji: '⚡', message: 'Thunder — Power consumption' },
+            { emoji: '🌊', message: 'Wave — Ocean energy' },
+            { emoji: '☀️', message: 'Solar — Clean power' },
+            { emoji: '🔋', message: 'Battery — Energy storage' },
+            { emoji: '🔌', message: 'Plug — Power connection' },
+            { emoji: '💡', message: 'Lightbulb — Energy visible' },
+            { emoji: '💻', message: 'Computer — Using energy now' },
+            { emoji: '🤖', message: 'Robot — AI compute power' },
+            { emoji: '🛰️', message: 'Satellite — Data transmission' },
+            { emoji: '⚙️', message: 'Gear — Machine processing' },
+            { emoji: '🏭', message: 'Factory — Industrial energy' },
+            { emoji: '☢️', message: 'Nuclear — Powerful, controversial' },
+            { emoji: '🌳', message: 'Tree — Carbon capture' },
+            { emoji: '🌱', message: 'Seedling — New growth, hope' },
+            { emoji: '🍃', message: 'Leaves — Nature\'s energy' },
+            { emoji: '🪨', message: 'Coal — Fossil fuel reality' },
+            { emoji: '🛢️', message: 'Oil — Petroleum reality' },
+            { emoji: '🔥', message: 'Fire — Primal energy' },
+            { emoji: '🌋', message: 'Volcano — Earth\'s raw power' },
+            { emoji: '❄️', message: 'Ice — Climate change reminder' },
+            { emoji: '💎', message: 'Diamond — Pressure creates value' },
+            { emoji: '🪫', message: 'Low battery — Resources depleting' },
+            { emoji: '♻️', message: 'Recycle — Circular economy' },
+            { emoji: '🌙', message: 'Moon — Tidal energy' },
+            { emoji: '💣', message: 'Bomb — Energy\'s dark side' },
+            { emoji: '🦖', message: 'Dinosaur — Origin of fossil fuels' }
+        ];
+        let energyIndex = 0;
+        let energyFastInterval = null;
+        const energyIndicator = document.getElementById('energy-indicator');
+        const energyMessage = document.getElementById('energy-message');
+        
+        function advanceEnergyCycle() {
+            energyIndex = (energyIndex + 1) % energyCycle.length;
+            const current = energyCycle[energyIndex];
+            if (energyIndicator) energyIndicator.textContent = current.emoji;
+            if (energyMessage) energyMessage.textContent = current.message;
+        }
+        
+        // Start fast cycling during active processing
+        function startEnergyCycling() {
+            if (!energyFastInterval) {
+                energyFastInterval = setInterval(advanceEnergyCycle, 500);
+            }
+        }
+        
+        // Stop fast cycling when idle
+        function stopEnergyCycling() {
+            if (energyFastInterval) {
+                clearInterval(energyFastInterval);
+                energyFastInterval = null;
+            }
+        }
+        
+        // Hook into sendMessage to start/stop cycling
+        const originalSendMessage = sendMessage;
+        sendMessage = async function(message) {
+            startEnergyCycling();
+            try {
+                return await originalSendMessage(message);
+            } finally {
+                stopEnergyCycling();
+            }
+        };
+        
+        // Slow background cycle when idle (every 30s)
+        setInterval(() => {
+            if (!energyFastInterval) advanceEnergyCycle();
+        }, 30000);
     </script>
     
     {% block extra_scripts %}{% endblock %}
