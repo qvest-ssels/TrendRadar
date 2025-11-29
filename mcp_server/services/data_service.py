@@ -80,7 +80,9 @@ class DataService:
                     "platform": platform_id,
                     "platform_name": platform_name,
                     "rank": rank,
-                    "timestamp": fetch_time.strftime("%Y-%m-%d %H:%M:%S")
+                    "timestamp": fetch_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "data_source": "cached",  # Data from output files
+                    "woodchuck_page": f"/source/{platform_id}/"  # Link to Woodchuck static page
                 }
 
                 # 条件性添加 URL 字段
@@ -160,7 +162,9 @@ class DataService:
                     "rank": info["ranks"][0] if info["ranks"] else 0,
                     "avg_rank": round(avg_rank, 2),
                     "count": len(info["ranks"]),
-                    "date": date_str
+                    "date": date_str,
+                    "data_source": "cached",
+                    "woodchuck_page": f"/news/{date_str}/"  # Link to date page
                 }
 
                 # 条件性添加 URL 字段
@@ -241,7 +245,9 @@ class DataService:
                                 "avg_rank": round(avg_rank, 2),
                                 "url": info.get("url", ""),
                                 "mobileUrl": info.get("mobileUrl", ""),
-                                "date": current_date.strftime("%Y-%m-%d")
+                                "date": current_date.strftime("%Y-%m-%d"),
+                                "data_source": "cached",
+                                "woodchuck_page": f"/source/{platform_id}/"
                             })
 
                             platform_distribution[platform_id] += 1

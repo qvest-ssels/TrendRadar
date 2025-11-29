@@ -817,10 +817,13 @@ class DataFetcher:
 
 # === 数据处理 ===
 def save_titles_to_file(results: Dict, id_to_name: Dict, failed_ids: List) -> str:
-    """保存标题到文件"""
-    file_path = get_output_path("txt", f"{format_time_filename()}.txt")
+    """保存标题到文件（同时保存txt和json格式）"""
+    timestamp = format_time_filename()
+    txt_file_path = get_output_path("txt", f"{timestamp}.txt")
+    json_file_path = get_output_path("json", f"{timestamp}.json")
 
-    with open(file_path, "w", encoding="utf-8") as f:
+    # Save txt format (backward compatible)
+    with open(txt_file_path, "w", encoding="utf-8") as f:
         for id_value, title_data in results.items():
             # id | name 或 id
             name = id_to_name.get(id_value)
@@ -863,7 +866,59 @@ def save_titles_to_file(results: Dict, id_to_name: Dict, failed_ids: List) -> st
             for id_value in failed_ids:
                 f.write(f"{id_value}\n")
 
-    return file_path
+    # Save JSON format with metadata
+    json_data = {
+        "metadata": {
+            "crawl_time": datetime.now().isoformat(),
+            "timezone": CONFIG.get("TIMEZONE", "UTC"),
+            "version": VERSION,
+            "total_platforms": len(results),
+            "failed_platforms": len(failed_ids)
+        },
+        "platforms": {}
+    }
+    
+    for id_value, title_data in results.items():
+        platform_name = id_to_name.get(id_value, id_value)
+        platform_language = get_platform_language(id_value)
+        
+        items = []
+        for title, info in title_data.items():
+            cleaned_title = clean_title(title)
+            if isinstance(info, dict):
+                ranks = info.get("ranks", [])
+                url = info.get("url", "")
+                mobile_url = info.get("mobileUrl", "")
+            else:
+                ranks = info if isinstance(info, list) else []
+                url = ""
+                mobile_url = ""
+            
+            items.append({
+                "title": cleaned_title,
+                "rank": ranks[0] if ranks else 1,
+                "all_ranks": ranks,
+                "url": url,
+                "mobile_url": mobile_url
+            })
+        
+        # Sort by rank
+        items.sort(key=lambda x: x["rank"])
+        
+        json_data["platforms"][id_value] = {
+            "name": platform_name,
+            "language": platform_language,
+            "item_count": len(items),
+            "items": items
+        }
+    
+    if failed_ids:
+        json_data["failed_platforms"] = failed_ids
+    
+    with open(json_file_path, "w", encoding="utf-8") as f:
+        json.dump(json_data, f, ensure_ascii=False, indent=2)
+
+    return txt_file_path
 
 
 def get_platform_language(platform_id: str) -> str:
