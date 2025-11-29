@@ -31,7 +31,7 @@ async def test_platform(name, url):
             soup = BeautifulSoup(html, 'html.parser')
             
             title = soup.title.string if soup.title else 'No title'
-            print(f'\n{name}: {title[:50]}')
+            print(f'\n{name}: {title[:60]}')
             print(f'  HTML length: {len(html)}')
             
             # Check for Cloudflare block
@@ -41,6 +41,10 @@ async def test_platform(name, url):
             # Check for articles
             articles = soup.select('article')
             print(f'  Articles: {len(articles)}')
+            
+            # Check for common result patterns
+            results = soup.select('[class*=result], [class*=search], [class*=item], [class*=story]')
+            print(f'  Result-like elements: {len(results)}')
             
             # Show first few article titles
             for a in articles[:3]:
@@ -56,8 +60,12 @@ async def test_platform(name, url):
 
 async def main():
     platforms = [
-        ('Times of Israel', 'https://www.timesofisrael.com/?s=technology'),
-        ('Heise', 'https://www.heise.de/suche/?q=technology&sort=date'),
+        # Slashdot - works! 28 articles
+        ('Slashdot', 'https://slashdot.org/index2.pl?fhfilter=technology'),
+        # Guardian Australia - use correct search
+        ('Guardian AU', 'https://www.theguardian.com/au/search?q=technology'),
+        # Daily Maverick - Cloudflare but articles found
+        ('Daily Maverick', 'https://www.dailymaverick.co.za/?s=technology'),
     ]
     for name, url in platforms:
         await test_platform(name, url)

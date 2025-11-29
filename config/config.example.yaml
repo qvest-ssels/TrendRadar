@@ -100,26 +100,37 @@ weight:
 platforms:
   - id: "toutiao"
     name: "今日头条"
+    language: "zh"
   - id: "baidu"
     name: "百度热搜"
+    language: "zh"
   - id: "wallstreetcn-hot"
     name: "华尔街见闻"
+    language: "zh"
   - id: "thepaper"
     name: "澎湃新闻"
+    language: "zh"
   - id: "bilibili-hot-search"
     name: "bilibili 热搜"
+    language: "zh"
   - id: "cls-hot"
     name: "财联社热门"
+    language: "zh"
   - id: "ifeng"
     name: "凤凰网"
+    language: "zh"
   - id: "tieba"
     name: "贴吧"
+    language: "zh"
   - id: "weibo"
     name: "微博"
+    language: "zh"
   - id: "douyin"
     name: "抖音"
+    language: "zh"
   - id: "zhihu"
     name: "知乎"
+    language: "zh"
   - id: "spiegel"
     name: "Der Spiegel — Schlagzeilen"
     language: "de"
@@ -138,7 +149,7 @@ platforms:
       type: "googlenews"
       url_template: "https://www.tagesspiegel.de/news.xml"
     search:
-      enabled: true
+      enabled: false  # Search uses JS framework that doesn't work with scraping
       type: "url_pattern"
       search_url: "https://www.tagesspiegel.de/suche/?q={query}"
       requires_js: true
@@ -164,6 +175,7 @@ platforms:
       enabled: true
       type: "url_pattern"
       search_url: "https://www.heise.de/suche/?q={query}&sort=date"
+      requires_js: true
       rate_limit: 2.0
   - id: "slashdot"
     name: "Slashdot"
@@ -171,6 +183,12 @@ platforms:
     crawler:
       type: "rss"
       url_template: "http://rss.slashdot.org/Slashdot/slashdotMain"
+    search:
+      enabled: true
+      type: "url_pattern"
+      search_url: "https://slashdot.org/index2.pl?fhfilter={query}"
+      requires_js: true
+      rate_limit: 2.0
   - id: "lemonde"
     name: "Le Monde"
     language: "fr"
@@ -201,7 +219,7 @@ platforms:
       type: "rss"
       url_template: "https://www.themoscowtimes.com/rss/news"
     search:
-      enabled: true
+      enabled: false  # Search page doesn't show article results
       type: "url_pattern"
       search_url: "https://www.themoscowtimes.com/search?query={query}"
       rate_limit: 2.0
@@ -214,6 +232,7 @@ platforms:
   - id: "dailymaverick"
     name: "Daily Maverick"
     language: "en"
+    cdn: "cloudflare"
     crawler:
       type: "rss"
       url_template: "https://www.dailymaverick.co.za/dmrss/"
@@ -235,9 +254,16 @@ platforms:
     crawler:
       type: "rss"
       url_template: "https://www.theguardian.com/australia-news/rss"
+    search:
+      enabled: true
+      type: "api"
+      api_url: "https://content.guardianapis.com/search"
+      api_key: "test"  # Free tier API key
+      rate_limit: 1.0
   - id: "aawsat"
     name: "Asharq Al-Awsat"
     language: "en"
+    cdn: "cloudflare"
     crawler:
       type: "rss"
       url_template: "https://english.aawsat.com/feed"
@@ -255,11 +281,12 @@ platforms:
   - id: "timesofisrael"
     name: "The Times of Israel"
     language: "en"
+    cdn: "cloudflare"  # Heavy bot protection
     crawler:
       type: "rss"
       url_template: "https://www.timesofisrael.com/feed/"
     search:
-      enabled: true
+      enabled: false  # Cloudflare blocks search scraping
       type: "url_pattern"
       search_url: "https://www.timesofisrael.com/?s={query}"
       rate_limit: 2.0

@@ -183,6 +183,12 @@ platforms:
     crawler:
       type: "rss"
       url_template: "http://rss.slashdot.org/Slashdot/slashdotMain"
+    search:
+      enabled: true
+      type: "url_pattern"
+      search_url: "https://slashdot.org/index2.pl?fhfilter={query}"
+      requires_js: true
+      rate_limit: 2.0
   - id: "lemonde"
     name: "Le Monde"
     language: "fr"
@@ -226,6 +232,7 @@ platforms:
   - id: "dailymaverick"
     name: "Daily Maverick"
     language: "en"
+    cdn: "cloudflare"
     crawler:
       type: "rss"
       url_template: "https://www.dailymaverick.co.za/dmrss/"
@@ -247,9 +254,16 @@ platforms:
     crawler:
       type: "rss"
       url_template: "https://www.theguardian.com/australia-news/rss"
+    search:
+      enabled: true
+      type: "api"
+      api_url: "https://content.guardianapis.com/search"
+      api_key: "test"  # Free tier API key
+      rate_limit: 1.0
   - id: "aawsat"
     name: "Asharq Al-Awsat"
     language: "en"
+    cdn: "cloudflare"
     crawler:
       type: "rss"
       url_template: "https://english.aawsat.com/feed"
@@ -267,6 +281,7 @@ platforms:
   - id: "timesofisrael"
     name: "The Times of Israel"
     language: "en"
+    cdn: "cloudflare"  # Heavy bot protection
     crawler:
       type: "rss"
       url_template: "https://www.timesofisrael.com/feed/"
