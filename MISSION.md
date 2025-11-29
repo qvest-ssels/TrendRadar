@@ -20,21 +20,29 @@ Every digital interaction consumes energy. We believe users should be **consciou
 
 **The Energy Cycle** ♻️
 
-Our activity indicator cycles through symbols representing the energy journey:
+Our activity indicator cycles through 28 symbols representing the complete energy journey:
 
 ```
-🌍 → 💨 → ⚡ → 🌊 → ☀️ → 💻 → ☢️ → 🌳 → �ite → 💎 → 💣 → 🦖 → (restart)
-Earth  Wind  Thunder Wave  Solar  Computer Nuclear Tree  Coal  Diamond Bomb  Dinosaur
+🌍→💨→⚡→🌊→☀️→🔋→🔌→💡→💻→🤖→🛰️→⚙️→🏭→☢️→🌳→🌱→🍃→🪨→🛢️→🔥→🌋→❄️→💎→🪫→♻️→🌙→💣→🦖→(restart)
 ```
 
 This cycle reminds us that:
 - **🌍 Earth** - Our shared home and finite resources
 - **💨 Wind / 🌊 Wave / ☀️ Solar** - Renewable possibilities
-- **💻 Computer** - The device consuming energy right now
+- **🔋 Battery / 🔌 Plug** - Energy storage and connection
+- **💡 Lightbulb** - Energy consumption made visible
+- **💻 Computer / 🤖 Robot** - Digital energy consumption & AI compute
+- **🛰️ Satellite / ⚙️ Gear** - Data transmission and processing costs
+- **🏭 Factory** - Industrial scale energy use
 - **☢️ Nuclear** - Powerful but controversial energy
-- **🌳 Tree** - Nature's carbon capture
-- **🪨 Coal** - Fossil fuel reality
+- **🌳 Tree / 🌱 Seedling / 🍃 Leaves** - Nature's carbon capture and hope
+- **🪨 Coal / 🛢️ Oil** - Fossil fuel reality
+- **🔥 Fire / 🌋 Volcano** - Primal and raw Earth energy
+- **❄️ Ice** - Climate change reminder
 - **💎 Diamond** - Pressure creates value (and carbon)
+- **🪫 Low Battery** - Resources are depleting
+- **♻️ Recycle** - Circular economy solution
+- **🌙 Moon** - Tidal energy and rest
 - **💣 Bomb** - Energy's destructive potential
 - **🦖 Dinosaur** - Where fossil fuels came from (and extinction warning)
 
