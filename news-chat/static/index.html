@@ -598,6 +598,7 @@
         ];
         let energyIndex = 0;
         let queryCount = 0;
+        let energyFastInterval = null;
         const energyIndicator = document.getElementById('energy-indicator');
         const energyMessage = document.getElementById('energy-message');
         
@@ -608,6 +609,21 @@
             energyMessage.textContent = current.message;
         }
         
+        // Start fast cycling during active processing
+        function startEnergyCycling() {
+            if (!energyFastInterval) {
+                energyFastInterval = setInterval(advanceEnergyCycle, 500); // Fast: every 500ms
+            }
+        }
+        
+        // Stop fast cycling when idle
+        function stopEnergyCycling() {
+            if (energyFastInterval) {
+                clearInterval(energyFastInterval);
+                energyFastInterval = null;
+            }
+        }
+        
         // Advance on each query sent
         const originalSendMessage = sendMessage;
         const queryCounter = document.getElementById('query-counter');
@@ -616,12 +632,19 @@
                 queryCount++;
                 advanceEnergyCycle();
                 queryCounter.textContent = `Queries: ${queryCount}`;
+                startEnergyCycling(); // Start fast cycling
             }
-            return originalSendMessage(userMessage);
+            try {
+                return await originalSendMessage(userMessage);
+            } finally {
+                stopEnergyCycling(); // Stop when done
+            }
         };
         
         // Also advance slowly in background (every 30s)
-        setInterval(advanceEnergyCycle, 30000);
+        setInterval(() => {
+            if (!energyFastInterval) advanceEnergyCycle(); // Only if not fast-cycling
+        }, 30000);
         
         // Focus input on load
         userInput.focus();
