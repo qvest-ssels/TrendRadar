@@ -681,6 +681,1186 @@ async def deep_search(
 
 
 @mcp.tool
+async def get_wikipedia_context(
+    topic: str,
+    language: str = "en",
+    include_related: bool = False
+) -> str:
+    """
+    获取维基百科背景信息 - Get Wikipedia context for a topic
+
+    This tool provides background information from Wikipedia to enrich news context.
+    Use it when users ask about:
+    - Who is [person]?
+    - What is [company/organization]?
+    - Background on [topic/event]
+    - Context about [news subject]
+
+    Supports multiple languages for culturally-aware context.
+
+    Args:
+        topic: The topic to look up (person, company, event, concept, etc.)
+        language: Wikipedia language code:
+            - "en": English (default)
+            - "de": German
+            - "fr": French
+            - "es": Spanish
+            - "zh": Chinese
+            - "ja": Japanese
+            - "ru": Russian
+            - "pt": Portuguese
+            - "ar": Arabic
+            - "ko": Korean
+        include_related: Whether to include related topics (default: False)
+
+    Returns:
+        JSON with:
+        - title: Article title
+        - extract: Summary text
+        - description: Short description
+        - url: Link to Wikipedia article
+        - thumbnail: Image URL (if available)
+        - related_topics: Related articles (if include_related=True)
+
+    Examples:
+        用户："谁是马斯克？" / "Who is Elon Musk?"
+        → get_wikipedia_context(topic="Elon Musk", language="en")
+
+        用户："Was ist Tesla?" (German)
+        → get_wikipedia_context(topic="Tesla, Inc.", language="de")
+
+        用户："告诉我关于SpaceX的背景"
+        → get_wikipedia_context(topic="SpaceX", language="zh")
+    """
+    from .services.wikipedia_service import get_wikipedia_service
+    
+    try:
+        wiki = get_wikipedia_service()
+        result = wiki.get_context(
+            topic=topic,
+            language=language,
+            include_related=include_related
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "WIKIPEDIA_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def search_wikipedia(
+    query: str,
+    language: str = "en",
+    limit: int = 5
+) -> str:
+    """
+    搜索维基百科 - Search Wikipedia for articles
+
+    Search Wikipedia to find relevant articles about a topic.
+    Use when the exact article title is unknown.
+
+    Args:
+        query: Search query
+        language: Wikipedia language code (en, de, fr, zh, etc.)
+        limit: Maximum number of results (default: 5)
+
+    Returns:
+        JSON with search results including title, snippet, and URL
+
+    Examples:
+        用户："搜索关于人工智能的维基百科文章"
+        → search_wikipedia(query="artificial intelligence", language="en")
+    """
+    from .services.wikipedia_service import get_wikipedia_service
+    
+    try:
+        wiki = get_wikipedia_service()
+        result = wiki.search(query=query, language=language, limit=limit)
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "WIKIPEDIA_SEARCH_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+# =============================================================================
+# ASK AN EXPERT - HuggingFace Tools
+# =============================================================================
+
+@mcp.tool
+async def search_huggingface_models(
+    query: str,
+    task: Optional[str] = None,
+    sort: str = "downloads",
+    limit: int = 10
+) -> str:
+    """
+    🧑‍🔬 Ask an Expert: Search HuggingFace for ML models
+    
+    Search the HuggingFace Hub for machine learning models.
+    Use when users ask about:
+    - Best models for a task (e.g., "best LLM for code generation")
+    - Specific model families (e.g., "Llama models", "BERT variants")
+    - Models by capability (e.g., "translation models", "image generation")
+    
+    Args:
+        query: Search query (e.g., "code generation", "llama", "sentiment analysis")
+        task: Filter by task type (optional):
+            - "text-generation": LLMs, chat models
+            - "text-classification": Sentiment, topic classification
+            - "translation": Language translation
+            - "summarization": Text summarization
+            - "conversational": Chat/dialogue models
+            - "text-to-image": Image generation (Stable Diffusion, etc.)
+            - "automatic-speech-recognition": Speech-to-text
+            - "feature-extraction": Embeddings models
+        sort: Sort by "downloads" (default), "likes", "created", "modified"
+        limit: Maximum results (default: 10, max: 100)
+    
+    Returns:
+        JSON with models including name, downloads, likes, task, URL
+    
+    Examples:
+        "What's the best LLM for code?" 
+        → search_huggingface_models(query="code generation", task="text-generation")
+        
+        "Find image generation models"
+        → search_huggingface_models(query="stable diffusion", task="text-to-image")
+        
+        "Most popular embedding models"
+        → search_huggingface_models(query="embeddings", task="feature-extraction", sort="downloads")
+    """
+    from .services.huggingface_service import get_huggingface_service
+    
+    try:
+        hf = get_huggingface_service()
+        result = hf.search_models(query=query, task=task, sort=sort, limit=limit)
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "HUGGINGFACE_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def search_huggingface_datasets(
+    query: str,
+    sort: str = "downloads",
+    limit: int = 10
+) -> str:
+    """
+    🧑‍🔬 Ask an Expert: Search HuggingFace for datasets
+    
+    Search the HuggingFace Hub for machine learning datasets.
+    Use when users ask about:
+    - Training data for specific tasks
+    - Benchmark datasets
+    - Data for fine-tuning models
+    
+    Args:
+        query: Search query (e.g., "sentiment analysis", "code", "medical")
+        sort: Sort by "downloads" (default), "likes", "created", "modified"
+        limit: Maximum results (default: 10)
+    
+    Returns:
+        JSON with datasets including name, downloads, tags, URL
+    
+    Examples:
+        "Find datasets for training a code model"
+        → search_huggingface_datasets(query="code programming")
+        
+        "What datasets are available for sentiment analysis?"
+        → search_huggingface_datasets(query="sentiment")
+    """
+    from .services.huggingface_service import get_huggingface_service
+    
+    try:
+        hf = get_huggingface_service()
+        result = hf.search_datasets(query=query, sort=sort, limit=limit)
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "HUGGINGFACE_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def get_ml_papers(
+    query: Optional[str] = None,
+    limit: int = 10
+) -> str:
+    """
+    🧑‍🔬 Ask an Expert: Get latest ML/AI research papers
+    
+    Get curated ML papers from HuggingFace Daily Papers or search by topic.
+    Use when users ask about:
+    - Latest research in AI/ML
+    - Papers on specific topics (transformers, LLMs, etc.)
+    - Academic research for a technique
+    
+    Args:
+        query: Search query (optional, if None returns latest daily papers)
+        limit: Maximum results (default: 10)
+    
+    Returns:
+        JSON with papers including title, authors, summary, arXiv link
+    
+    Examples:
+        "What are the latest AI research papers?"
+        → get_ml_papers()
+        
+        "Find papers about retrieval augmented generation"
+        → get_ml_papers(query="retrieval augmented generation")
+        
+        "Research on transformer architectures"
+        → get_ml_papers(query="transformer architecture")
+    """
+    from .services.huggingface_service import get_huggingface_service
+    
+    try:
+        hf = get_huggingface_service()
+        if query:
+            result = hf.search_papers(query=query, limit=limit)
+        else:
+            result = hf.get_daily_papers(limit=limit)
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "HUGGINGFACE_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def search_arxiv(
+    query: str,
+    category: Optional[str] = None,
+    max_results: int = 10,
+    sort_by: str = "relevance",
+    include_university_links: bool = True
+) -> str:
+    """
+    🧑‍🔬 Ask an Expert: Search arXiv for academic papers
+    
+    Search the arXiv preprint server for academic research papers.
+    Returns papers with abstracts, authors, affiliations, and links to universities via Wikipedia.
+    
+    Use when users ask about:
+    - Academic research on specific topics
+    - Scientific papers and preprints  
+    - Research from specific fields (CS, ML, Physics, Math)
+    - Papers by specific authors or institutions
+    
+    Args:
+        query: Search query (e.g., "transformer architecture", "large language models")
+        category: Filter by arXiv category (optional):
+            - "cs.AI": Artificial Intelligence
+            - "cs.CL": Computation and Language (NLP)
+            - "cs.CV": Computer Vision
+            - "cs.LG": Machine Learning
+            - "cs.NE": Neural and Evolutionary Computing
+            - "cs.IR": Information Retrieval
+            - "stat.ML": Machine Learning (Statistics)
+        max_results: Maximum papers to return (default: 10, max: 50)
+        sort_by: Sort order - "relevance", "lastUpdatedDate", "submittedDate"
+        include_university_links: Add Wikipedia links for author universities (default: True)
+    
+    Returns:
+        JSON with papers including:
+        - title, abstract, authors
+        - affiliations with Wikipedia university links
+        - arXiv URL and PDF link
+        - categories and publication date
+    
+    Examples:
+        "Latest transformer architecture research"
+        → search_arxiv(query="transformer architecture", category="cs.LG")
+        
+        "Papers about RAG from NLP category"
+        → search_arxiv(query="retrieval augmented generation", category="cs.CL")
+        
+        "Recent computer vision papers"
+        → search_arxiv(query="deep learning", category="cs.CV", sort_by="submittedDate")
+    """
+    from .services.arxiv_service import get_arxiv_service
+    
+    try:
+        arxiv = get_arxiv_service()
+        result = arxiv.search(
+            query=query,
+            category=category,
+            max_results=max_results,
+            sort_by=sort_by,
+            include_university_links=include_university_links
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "ARXIV_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def get_arxiv_paper(
+    arxiv_id: str
+) -> str:
+    """
+    🧑‍🔬 Ask an Expert: Get details for a specific arXiv paper
+    
+    Retrieve full details for a specific arXiv paper by its ID.
+    
+    Args:
+        arxiv_id: arXiv paper ID (e.g., "2301.07041", "2312.12456")
+    
+    Returns:
+        JSON with full paper details including abstract, all authors, affiliations
+    
+    Examples:
+        "Get details for paper 2301.07041"
+        → get_arxiv_paper(arxiv_id="2301.07041")
+    """
+    from .services.arxiv_service import get_arxiv_service
+    
+    try:
+        arxiv = get_arxiv_service()
+        result = arxiv.get_paper(arxiv_id)
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "ARXIV_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def search_github_repos(
+    query: str,
+    language: Optional[str] = None,
+    sort: str = "stars",
+    limit: int = 10,
+    min_stars: Optional[int] = None
+) -> str:
+    """
+    🧑‍🔬 Ask an Expert: Search GitHub for repositories
+    
+    Search GitHub repositories by keywords, topics, or names.
+    Great for finding open source projects, libraries, and tools.
+    
+    Use when users ask about:
+    - Best libraries/tools for a specific task
+    - Open source alternatives to products
+    - Popular projects in a programming language
+    - Implementations of algorithms/architectures
+    
+    Args:
+        query: Search query (keywords, topics, project names)
+               Examples: "web scraping", "machine learning", "react components"
+        language: Filter by programming language (optional)
+                  Options: python, javascript, typescript, java, go, rust, c, cpp, csharp, ruby, etc.
+        sort: Sort results by (default: stars)
+              - "stars": Most starred repos
+              - "forks": Most forked repos
+              - "updated": Recently updated
+              - "best-match": Best match for query
+        limit: Maximum results (default: 10, max: 30)
+        min_stars: Minimum star count filter (optional)
+    
+    Returns:
+        JSON with repos including name, description, stars, forks, language, topics, URL
+    
+    Examples:
+        "Best Python libraries for web scraping"
+        → search_github_repos(query="web scraping", language="python", sort="stars")
+        
+        "Open source LLM implementations"
+        → search_github_repos(query="large language model LLM", min_stars=1000)
+        
+        "Popular React component libraries"
+        → search_github_repos(query="react components ui", language="javascript")
+        
+        "Rust async runtime projects"
+        → search_github_repos(query="async runtime", language="rust")
+    """
+    from .services.github_service import get_github_service
+    
+    try:
+        github = get_github_service()
+        result = github.search_repos(
+            query=query,
+            language=language,
+            sort=sort,
+            limit=limit,
+            min_stars=min_stars
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "GITHUB_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def expert_research(
+    query: str,
+    include_papers: bool = True,
+    include_repos: bool = True,
+    include_models: bool = True,
+    include_datasets: bool = False,
+    max_results_per_source: int = 5
+) -> str:
+    """
+    🧑‍🔬 Ask an Expert: Comprehensive research combining multiple expert sources
+    
+    This is the PREFERRED tool for technical/research questions. It combines:
+    - arXiv academic papers (latest research)
+    - GitHub repositories (implementations & tools)  
+    - HuggingFace models (pre-trained ML models)
+    - HuggingFace datasets (optional)
+    
+    Use when users ask broad technical questions like:
+    - "How do I build a RAG system?"
+    - "What's the state of the art in image generation?"
+    - "Best approaches for sentiment analysis"
+    - "How to implement a transformer from scratch"
+    
+    For specific narrow queries, use individual tools instead:
+    - Just want papers? → search_arxiv
+    - Just want repos? → search_github_repos
+    - Just want models? → search_huggingface_models
+    
+    Args:
+        query: Research question or topic
+               Examples: "RAG retrieval augmented generation", "vision transformers", "code generation"
+        include_papers: Include arXiv papers (default: True)
+        include_repos: Include GitHub repos (default: True)
+        include_models: Include HuggingFace models (default: True)
+        include_datasets: Include HuggingFace datasets (default: False)
+        max_results_per_source: Max results from each source (default: 5)
+    
+    Returns:
+        JSON with combined research results:
+        - papers: Academic papers with abstracts and links
+        - repos: GitHub projects with stars and descriptions
+        - models: ML models with download counts
+        - datasets: Training datasets (if requested)
+        - summary: Quick overview of what was found
+    
+    Examples:
+        "How to build a RAG system"
+        → expert_research(query="RAG retrieval augmented generation")
+        
+        "State of the art in image generation"
+        → expert_research(query="diffusion models image generation", include_datasets=True)
+        
+        "Best way to do sentiment analysis"
+        → expert_research(query="sentiment analysis NLP", include_models=True)
+    """
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    
+    results = {
+        "success": True,
+        "query": query,
+        "papers": [],
+        "repos": [],
+        "models": [],
+        "datasets": [],
+        "summary": {},
+        "sources_queried": []
+    }
+    
+    # Use ThreadPoolExecutor for parallel API calls
+    executor = ThreadPoolExecutor(max_workers=4)
+    loop = asyncio.get_event_loop()
+    
+    async def fetch_arxiv():
+        if not include_papers:
+            return None
+        try:
+            from .services.arxiv_service import get_arxiv_service
+            arxiv = get_arxiv_service()
+            return arxiv.search(
+                query=query,
+                max_results=max_results_per_source,
+                include_university_links=True
+            )
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def fetch_github():
+        if not include_repos:
+            return None
+        try:
+            from .services.github_service import get_github_service
+            github = get_github_service()
+            return github.search_repos(
+                query=query,
+                sort="stars",
+                limit=max_results_per_source,
+                min_stars=100  # Filter out low-quality repos
+            )
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def fetch_models():
+        if not include_models:
+            return None
+        try:
+            from .services.huggingface_service import get_huggingface_service
+            hf = get_huggingface_service()
+            return hf.search_models(
+                query=query,
+                sort="downloads",
+                limit=max_results_per_source
+            )
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def fetch_datasets():
+        if not include_datasets:
+            return None
+        try:
+            from .services.huggingface_service import get_huggingface_service
+            hf = get_huggingface_service()
+            return hf.search_datasets(
+                query=query,
+                sort="downloads",
+                limit=max_results_per_source
+            )
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # Run all fetches concurrently
+    try:
+        arxiv_result, github_result, models_result, datasets_result = await asyncio.gather(
+            fetch_arxiv(),
+            fetch_github(),
+            fetch_models(),
+            fetch_datasets(),
+            return_exceptions=True
+        )
+        
+        # Process arXiv results
+        if arxiv_result and isinstance(arxiv_result, dict) and arxiv_result.get("success"):
+            results["papers"] = arxiv_result.get("papers", [])
+            results["sources_queried"].append("arxiv")
+        
+        # Process GitHub results
+        if github_result and isinstance(github_result, dict) and github_result.get("success"):
+            results["repos"] = github_result.get("repos", [])
+            results["sources_queried"].append("github")
+        
+        # Process HuggingFace models
+        if models_result and isinstance(models_result, dict) and models_result.get("success"):
+            results["models"] = models_result.get("models", [])
+            results["sources_queried"].append("huggingface_models")
+        
+        # Process HuggingFace datasets
+        if datasets_result and isinstance(datasets_result, dict) and datasets_result.get("success"):
+            results["datasets"] = datasets_result.get("datasets", [])
+            results["sources_queried"].append("huggingface_datasets")
+        
+        # Generate summary
+        results["summary"] = {
+            "total_papers": len(results["papers"]),
+            "total_repos": len(results["repos"]),
+            "total_models": len(results["models"]),
+            "total_datasets": len(results["datasets"]),
+            "top_paper": results["papers"][0]["title"] if results["papers"] else None,
+            "top_repo": f"{results['repos'][0]['full_name']} ({results['repos'][0]['stars']}⭐)" if results["repos"] else None,
+            "top_model": results["models"][0]["id"] if results["models"] else None,
+        }
+        
+        # Add cross-references (find repos that implement papers)
+        if results["papers"] and results["repos"]:
+            # Simple heuristic: look for matching keywords
+            paper_keywords = set()
+            for paper in results["papers"][:3]:
+                title_words = paper.get("title", "").lower().split()
+                paper_keywords.update(w for w in title_words if len(w) > 4)
+            
+            for repo in results["repos"]:
+                repo_text = f"{repo.get('name', '')} {repo.get('description', '')}".lower()
+                matches = sum(1 for kw in paper_keywords if kw in repo_text)
+                if matches >= 2:
+                    repo["likely_implements_paper"] = True
+        
+        return json.dumps(results, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "EXPERT_RESEARCH_ERROR",
+                "message": str(e)
+            },
+            "query": query
+        }, ensure_ascii=False, indent=2)
+
+
+# ==================== YouTube Context Tools ====================
+
+@mcp.tool
+async def search_youtube(
+    query: str,
+    limit: int = 5
+) -> str:
+    """
+    🎬 Search YouTube for educational videos, tutorials, and talks
+    
+    Finds relevant videos for technical topics. Useful for:
+    - Tutorial videos ("how to implement X")
+    - Conference talks ("NeurIPS 2024 keynote")
+    - Explainer videos ("transformer architecture explained")
+    - Course lectures ("deep learning course")
+    
+    Note: Returns video IDs and URLs. Use get_youtube_transcript 
+    to get the actual content from a video.
+    
+    Args:
+        query: Search query
+               Examples: "RAG tutorial", "attention mechanism explained", "PyTorch quickstart"
+        limit: Number of results (default: 5, max: 20)
+    
+    Returns:
+        JSON with video results:
+        - videos: List of {video_id, title, channel, url}
+        - count: Number of results
+    
+    Examples:
+        "Find tutorials on RAG"
+        → search_youtube(query="RAG tutorial retrieval augmented generation")
+        
+        "Conference talks on transformers"
+        → search_youtube(query="transformer architecture conference talk")
+        
+        "Python async explained"
+        → search_youtube(query="python async await tutorial")
+    """
+    from .services.youtube_service import get_youtube_service
+    
+    try:
+        youtube = get_youtube_service()
+        result = youtube.search(
+            query=query,
+            limit=min(limit, 20)
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "YOUTUBE_SEARCH_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def get_youtube_transcript(
+    video_id: str,
+    max_length: int = 10000
+) -> str:
+    """
+    🎬 Get transcript/captions from a YouTube video
+    
+    Extracts the spoken content from a video. Perfect for:
+    - Getting tutorial content without watching
+    - Summarizing conference talks
+    - Extracting key points from lectures
+    - Research on video content
+    
+    Works with video IDs or full URLs:
+    - "dQw4w9WgXcQ" (video ID)
+    - "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    - "https://youtu.be/dQw4w9WgXcQ"
+    
+    Args:
+        video_id: YouTube video ID or URL
+        max_length: Maximum transcript length (default: 10000 chars)
+    
+    Returns:
+        JSON with:
+        - transcript: Full text of spoken content
+        - language: Detected language
+        - is_auto_generated: Whether captions are auto-generated
+        - segments: Timestamped text segments
+    
+    Examples:
+        Get transcript for a tutorial
+        → get_youtube_transcript(video_id="abc123xyz")
+        
+        Get transcript from URL
+        → get_youtube_transcript(video_id="https://www.youtube.com/watch?v=abc123xyz")
+    """
+    from .services.youtube_service import get_youtube_service
+    
+    try:
+        youtube = get_youtube_service()
+        result = youtube.get_transcript(
+            video_id_or_url=video_id,
+            max_length=max_length
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "YOUTUBE_TRANSCRIPT_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+# ========== Learning & Education Tools ==========
+
+@mcp.tool
+async def search_udemy(
+    query: str,
+    level: Optional[str] = None,
+    min_rating: float = 0.0,
+    limit: int = 10,
+    free_only: bool = False
+) -> str:
+    """
+    📚 Search Udemy for online courses
+    
+    Find courses to learn new skills. Perfect for:
+    - Learning programming languages
+    - Mastering new frameworks
+    - Professional development
+    - Finding tutorials on specific topics
+    
+    Args:
+        query: Topic or skill to learn (e.g., "Python async", "Kubernetes", "Machine Learning")
+        level: Skill level filter (beginner, intermediate, expert, all)
+        min_rating: Minimum course rating 0-5 (default: 0)
+        limit: Maximum courses to return (default: 10)
+        free_only: Only show free courses (default: False)
+    
+    Returns:
+        JSON with courses including title, URL, rating, instructor
+    
+    Examples:
+        Find Python courses
+        → search_udemy(query="Python programming", level="beginner")
+        
+        Find highly-rated ML courses
+        → search_udemy(query="machine learning", min_rating=4.5)
+    """
+    from .services.udemy_service import get_udemy_service
+    
+    try:
+        udemy = get_udemy_service()
+        result = udemy.search_courses(
+            query=query,
+            level=level,
+            min_rating=min_rating,
+            limit=limit,
+            free_only=free_only
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "UDEMY_SEARCH_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def search_conferences(
+    topic: Optional[str] = None,
+    year: Optional[int] = None,
+    country: Optional[str] = None,
+    city: Optional[str] = None,
+    limit: int = 20,
+    include_past: bool = False
+) -> str:
+    """
+    🎤 Search for tech conferences
+    
+    Find upcoming tech conferences, meetups, and events. Great for:
+    - Discovering conferences in your field
+    - Finding CFP (Call for Papers) deadlines
+    - Planning conference attendance
+    - Networking opportunities
+    
+    Args:
+        topic: Technology/field (python, javascript, ml, devops, kubernetes, etc.)
+        year: Conference year (default: current year)
+        country: Filter by country
+        city: Filter by city
+        limit: Maximum results (default: 20)
+        include_past: Include past conferences (default: False)
+    
+    Returns:
+        JSON with conferences including name, dates, location, CFP info
+    
+    Examples:
+        Find Python conferences
+        → search_conferences(topic="python")
+        
+        Find AI conferences in USA
+        → search_conferences(topic="ml", country="USA")
+        
+        Find conferences in Berlin
+        → search_conferences(city="Berlin")
+    """
+    from .services.conference_service import get_conference_service
+    
+    try:
+        conf_service = get_conference_service()
+        result = conf_service.search_conferences(
+            topic=topic,
+            year=year,
+            country=country,
+            city=city,
+            limit=limit,
+            include_past=include_past
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "CONFERENCE_SEARCH_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def search_newsletters(
+    query: str,
+    category: Optional[str] = None,
+    limit: int = 10
+) -> str:
+    """
+    📰 Search for newsletters by topic
+    
+    Discover newsletters to stay informed. Great for:
+    - Finding industry newsletters
+    - Discovering new content creators
+    - Building a reading list
+    - Following specific topics
+    
+    Args:
+        query: Topic or keyword (e.g., "AI", "startups", "Python")
+        category: Category filter (technology, business, ai, etc.)
+        limit: Maximum results (default: 10)
+    
+    Returns:
+        JSON with newsletters including name, URL, author, platform
+    
+    Examples:
+        Find AI newsletters
+        → search_newsletters(query="artificial intelligence")
+        
+        Find tech business newsletters
+        → search_newsletters(query="tech startups", category="business")
+    """
+    from .services.newsletter_service import get_newsletter_service
+    
+    try:
+        newsletter_service = get_newsletter_service()
+        result = newsletter_service.search_newsletters(
+            query=query,
+            category=category,
+            limit=limit
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "NEWSLETTER_SEARCH_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def get_popular_newsletters(
+    category: Optional[str] = None,
+    limit: int = 10
+) -> str:
+    """
+    ⭐ Get popular/recommended newsletters
+    
+    Browse curated list of popular newsletters. Categories:
+    - technology, business, ai, product, finance
+    
+    Args:
+        category: Filter by category
+        limit: Maximum results (default: 10)
+    
+    Returns:
+        JSON with popular newsletters including subscriber counts
+    """
+    from .services.newsletter_service import get_newsletter_service
+    
+    try:
+        newsletter_service = get_newsletter_service()
+        result = newsletter_service.get_popular_newsletters(
+            category=category,
+            limit=limit
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "NEWSLETTER_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+# ========== Entertainment Tools ==========
+
+@mcp.tool
+async def search_movies(
+    query: str,
+    content_type: Optional[str] = None,
+    year: Optional[int] = None,
+    limit: int = 10
+) -> str:
+    """
+    🎬 Search for movies and TV shows
+    
+    Search IMDB for movies, series, and episodes. Fun for:
+    - Finding movie info
+    - Checking ratings before watching
+    - Discovering related content
+    - Correlating news with movies/documentaries
+    
+    Args:
+        query: Movie or show title
+        content_type: Filter by type (movie, series, episode)
+        year: Filter by release year
+        limit: Maximum results (default: 10)
+    
+    Returns:
+        JSON with movies including title, year, type, IMDB ID
+    
+    Examples:
+        Search for a movie
+        → search_movies(query="Inception")
+        
+        Find TV series
+        → search_movies(query="Breaking Bad", content_type="series")
+        
+        Find 2024 movies
+        → search_movies(query="AI", year=2024, content_type="movie")
+    
+    Note: Requires OMDB_API_KEY environment variable (free at omdbapi.com)
+    """
+    from .services.imdb_service import get_imdb_service
+    
+    try:
+        imdb = get_imdb_service()
+        result = imdb.search_movies(
+            query=query,
+            content_type=content_type,
+            year=year,
+            limit=limit
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "IMDB_SEARCH_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def get_movie_details(
+    imdb_id: Optional[str] = None,
+    title: Optional[str] = None,
+    year: Optional[int] = None
+) -> str:
+    """
+    🎥 Get detailed movie/show information
+    
+    Get full details including plot, cast, ratings. Returns:
+    - Plot summary, runtime, genre
+    - Director, writer, actors
+    - IMDB rating, Metascore, Rotten Tomatoes
+    - Box office, awards
+    
+    Args:
+        imdb_id: IMDB ID (e.g., "tt0111161" for Shawshank Redemption)
+        title: Movie title (if no IMDB ID)
+        year: Year to help disambiguation
+    
+    Returns:
+        JSON with detailed movie information
+    
+    Examples:
+        Get by IMDB ID
+        → get_movie_details(imdb_id="tt0111161")
+        
+        Get by title
+        → get_movie_details(title="The Matrix", year=1999)
+    
+    Note: Requires OMDB_API_KEY environment variable
+    """
+    from .services.imdb_service import get_imdb_service
+    
+    try:
+        imdb = get_imdb_service()
+        result = imdb.get_movie_details(
+            imdb_id=imdb_id,
+            title=title,
+            year=year
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "IMDB_DETAILS_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def search_person(
+    name: str,
+    include_wikipedia: bool = True,
+    limit: int = 5
+) -> str:
+    """
+    👤 Search for actors, directors, and other celebrities
+    
+    Search IMDB for people in the entertainment industry.
+    Optionally cross-references with Wikipedia for biography.
+    
+    No API key required - uses web scraping.
+    
+    Args:
+        name: Person's name (e.g., "Tom Hanks", "Christopher Nolan")
+        include_wikipedia: Include Wikipedia bio if available (default: True)
+        limit: Maximum results (default: 5)
+    
+    Returns:
+        JSON with:
+        - name, IMDB ID, profile URL
+        - profession (actor, director, etc.)
+        - known_for: List of notable works
+        - wikipedia: Summary and link if found
+    
+    Examples:
+        Search for an actor
+        → search_person(name="Leonardo DiCaprio")
+        
+        Search director without Wikipedia
+        → search_person(name="Denis Villeneuve", include_wikipedia=False)
+    """
+    from .services.imdb_service import get_imdb_service
+    
+    try:
+        imdb = get_imdb_service()
+        result = imdb.search_person(
+            name=name,
+            include_wikipedia=include_wikipedia,
+            limit=limit
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "PERSON_SEARCH_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def get_person_filmography(
+    imdb_id: str,
+    limit: int = 20
+) -> str:
+    """
+    🎬 Get filmography for an actor or director
+    
+    Get the complete filmography for a person from IMDB.
+    
+    Args:
+        imdb_id: IMDB person ID (e.g., "nm0000138" for Leonardo DiCaprio)
+        limit: Maximum titles to return (default: 20)
+    
+    Returns:
+        JSON with:
+        - name, IMDB profile URL
+        - filmography: List of movies/shows with titles, years, IDs
+    
+    Examples:
+        Get Leonardo DiCaprio's filmography
+        → get_person_filmography(imdb_id="nm0000138")
+        
+        Get Christopher Nolan's films
+        → get_person_filmography(imdb_id="nm0634240", limit=10)
+    """
+    from .services.imdb_service import get_imdb_service
+    
+    try:
+        imdb = get_imdb_service()
+        result = imdb.get_person_filmography(
+            imdb_id=imdb_id,
+            limit=limit
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "FILMOGRAPHY_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
 async def meta_search(
     topic: str,
     related_terms: Optional[List[str]] = None,

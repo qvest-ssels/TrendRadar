@@ -167,6 +167,20 @@ platforms:
     founded: 1997
     description: "News for nerds, stuff that matters"
 
+  wsj:
+    homepage: "https://www.wsj.com"
+    wikipedia: "https://en.wikipedia.org/wiki/The_Wall_Street_Journal"
+    country: "US"
+    region: "americas"
+    type: "newspaper"
+    founded: 1889
+    headquarters: "New York City"
+    parent_company: "News Corp"
+    political_leaning: "centre-right"
+    paywall: true
+    paywall_type: "hard"
+    description: "American business-focused daily newspaper"
+
   # ==================== French Sources ====================
   lemonde:
     homepage: "https://www.lemonde.fr"

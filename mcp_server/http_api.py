@@ -24,6 +24,25 @@ from .server import (
     search_news,
     generate_summary_report,
     get_woodchuck_pages,
+    deep_search,
+    get_wikipedia_context,
+    search_wikipedia,
+    search_huggingface_models,
+    search_huggingface_datasets,
+    get_ml_papers,
+    search_arxiv,
+    search_github_repos,
+    expert_research,
+    search_youtube,
+    get_youtube_transcript,
+    search_udemy,
+    search_conferences,
+    search_newsletters,
+    get_popular_newsletters,
+    search_movies,
+    get_movie_details,
+    search_person,
+    get_person_filmography,
 )
 
 # Import data layer for FTS search
@@ -88,6 +107,25 @@ async def list_tools():
             {"name": "generate_summary_report", "description": "Generate a summary report"},
             {"name": "get_woodchuck_pages", "description": "Get Woodchuck News page index"},
             {"name": "search_headlines_fts", "description": "Full-text search across headlines (SQLite FTS5)"},
+            {"name": "deep_search", "description": "Deep search - combines local cache with live site search"},
+            {"name": "get_wikipedia_context", "description": "Get Wikipedia background info for a topic"},
+            {"name": "search_wikipedia", "description": "Search Wikipedia for articles"},
+            {"name": "search_huggingface_models", "description": "🧑‍🔬 Ask an Expert: Search HuggingFace for ML models"},
+            {"name": "search_huggingface_datasets", "description": "🧑‍🔬 Ask an Expert: Search HuggingFace for datasets"},
+            {"name": "get_ml_papers", "description": "🧑‍🔬 Ask an Expert: Get latest ML/AI research papers"},
+            {"name": "search_arxiv", "description": "🧑‍🔬 Ask an Expert: Search arXiv for academic papers"},
+            {"name": "search_github_repos", "description": "🧑‍🔬 Ask an Expert: Search GitHub for repositories"},
+            {"name": "expert_research", "description": "🧑‍🔬 Ask an Expert: Comprehensive research (papers + repos + models)"},
+            {"name": "search_youtube", "description": "🎬 Search YouTube for tutorials and educational videos"},
+            {"name": "get_youtube_transcript", "description": "🎬 Get transcript from a YouTube video"},
+            {"name": "search_udemy", "description": "📚 Search Udemy for online courses"},
+            {"name": "search_conferences", "description": "🎤 Search for tech conferences"},
+            {"name": "search_newsletters", "description": "📰 Search for newsletters by topic"},
+            {"name": "get_popular_newsletters", "description": "⭐ Get popular/recommended newsletters"},
+            {"name": "search_movies", "description": "🎬 Search IMDB for movies and TV shows"},
+            {"name": "get_movie_details", "description": "🎥 Get detailed movie/show information"},
+            {"name": "search_person", "description": "👤 Search for actors, directors, etc."},
+            {"name": "get_person_filmography", "description": "🎭 Get filmography for a person"},
         ]
     }
 
@@ -212,6 +250,32 @@ async def get_database_stats():
         return db.stats()
     except Exception as e:
         logger.error(f"Error fetching stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/cache/stats")
+async def get_cache_stats():
+    """
+    Get API cache statistics.
+    
+    Returns stats for all caches (github, arxiv, huggingface) including:
+    - size: current number of entries
+    - hits/misses: cache hit/miss counts
+    - hit_rate: percentage of cache hits
+    """
+    try:
+        from .utils.cache import get_all_cache_stats
+        return {
+            "success": True,
+            "caches": get_all_cache_stats()
+        }
+    except ImportError:
+        return {
+            "success": False,
+            "error": "Cache module not available"
+        }
+    except Exception as e:
+        logger.error(f"Error fetching cache stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -416,6 +480,157 @@ async def call_tool(tool_name: str, request: ToolRequest):
                 "count": len(serializable_results),
                 "results": serializable_results
             }, ensure_ascii=False)
+        
+        elif tool_name == "deep_search":
+            result = await deep_search.fn(
+                query=args.get("query", ""),
+                platforms=args.get("platforms"),
+                language=args.get("language"),
+                mode=args.get("mode", "both"),
+                max_results=args.get("max_results", 50),
+                date_range=args.get("date_range"),
+                include_url=args.get("include_url", True)
+            )
+            result = filter_archive_urls(result)
+        
+        elif tool_name == "get_wikipedia_context":
+            result = await get_wikipedia_context.fn(
+                topic=args.get("topic", ""),
+                language=args.get("language", "en"),
+                include_related=args.get("include_related", False)
+            )
+        
+        elif tool_name == "search_wikipedia":
+            result = await search_wikipedia.fn(
+                query=args.get("query", ""),
+                language=args.get("language", "en"),
+                limit=args.get("limit", 5)
+            )
+        
+        # Ask an Expert - HuggingFace tools
+        elif tool_name == "search_huggingface_models":
+            result = await search_huggingface_models.fn(
+                query=args.get("query", ""),
+                task=args.get("task"),
+                sort=args.get("sort", "downloads"),
+                limit=args.get("limit", 10)
+            )
+        
+        elif tool_name == "search_huggingface_datasets":
+            result = await search_huggingface_datasets.fn(
+                query=args.get("query", ""),
+                sort=args.get("sort", "downloads"),
+                limit=args.get("limit", 10)
+            )
+        
+        elif tool_name == "get_ml_papers":
+            result = await get_ml_papers.fn(
+                query=args.get("query"),
+                limit=args.get("limit", 10)
+            )
+        
+        # Ask an Expert - arXiv papers
+        elif tool_name == "search_arxiv":
+            result = await search_arxiv.fn(
+                query=args.get("query", ""),
+                category=args.get("category"),
+                max_results=args.get("max_results", 10)
+            )
+        
+        # Ask an Expert - GitHub repos
+        elif tool_name == "search_github_repos":
+            result = await search_github_repos.fn(
+                query=args.get("query", ""),
+                language=args.get("language"),
+                sort=args.get("sort", "stars"),
+                limit=args.get("limit", 10),
+                min_stars=args.get("min_stars")
+            )
+        
+        # Ask an Expert - Combined research
+        elif tool_name == "expert_research":
+            result = await expert_research.fn(
+                query=args.get("query", ""),
+                include_papers=args.get("include_papers", True),
+                include_repos=args.get("include_repos", True),
+                include_models=args.get("include_models", True),
+                include_datasets=args.get("include_datasets", False),
+                max_results_per_source=args.get("max_results_per_source", 5)
+            )
+        
+        # YouTube tools
+        elif tool_name == "search_youtube":
+            result = await search_youtube.fn(
+                query=args.get("query", ""),
+                limit=args.get("limit", 5)
+            )
+        
+        elif tool_name == "get_youtube_transcript":
+            result = await get_youtube_transcript.fn(
+                video_id=args.get("video_id", ""),
+                max_length=args.get("max_length", 10000)
+            )
+        
+        # Learning & Education tools
+        elif tool_name == "search_udemy":
+            result = await search_udemy.fn(
+                query=args.get("query", ""),
+                level=args.get("level"),
+                min_rating=args.get("min_rating", 0.0),
+                limit=args.get("limit", 10),
+                free_only=args.get("free_only", False)
+            )
+        
+        elif tool_name == "search_conferences":
+            result = await search_conferences.fn(
+                topic=args.get("topic"),
+                year=args.get("year"),
+                country=args.get("country"),
+                city=args.get("city"),
+                limit=args.get("limit", 20),
+                include_past=args.get("include_past", False)
+            )
+        
+        elif tool_name == "search_newsletters":
+            result = await search_newsletters.fn(
+                query=args.get("query", ""),
+                category=args.get("category"),
+                limit=args.get("limit", 10)
+            )
+        
+        elif tool_name == "get_popular_newsletters":
+            result = await get_popular_newsletters.fn(
+                category=args.get("category"),
+                limit=args.get("limit", 10)
+            )
+        
+        # Entertainment tools
+        elif tool_name == "search_movies":
+            result = await search_movies.fn(
+                query=args.get("query", ""),
+                content_type=args.get("content_type"),
+                year=args.get("year"),
+                limit=args.get("limit", 10)
+            )
+        
+        elif tool_name == "get_movie_details":
+            result = await get_movie_details.fn(
+                imdb_id=args.get("imdb_id"),
+                title=args.get("title"),
+                year=args.get("year")
+            )
+        
+        elif tool_name == "search_person":
+            result = await search_person.fn(
+                name=args.get("name"),
+                include_wikipedia=args.get("include_wikipedia", True)
+            )
+        
+        elif tool_name == "get_person_filmography":
+            result = await get_person_filmography.fn(
+                imdb_id=args.get("imdb_id"),
+                limit=args.get("limit", 20)
+            )
         
         else:
             raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found")

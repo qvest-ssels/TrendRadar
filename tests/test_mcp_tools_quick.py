@@ -48,7 +48,8 @@ class TestMCPToolsQuick:
         assert result.get("success") is True, f"Failed: {result.get('error')}"
         assert "result" in result
         data = result["result"]
-        assert "start_date" in data or "dates" in data, f"Unexpected response: {data}"
+        # Response has date_range with start/end, or dates list
+        assert "date_range" in data or "dates" in data, f"Unexpected response: {data}"
         print(f"✓ resolve_date_range: {data}")
 
     def test_get_latest_news(self, api_available):

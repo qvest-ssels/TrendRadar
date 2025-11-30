@@ -47,6 +47,157 @@
 
 ---
 
+## Ask an Expert 🧑‍🔬
+
+An advanced research feature for technical/scientific queries that go beyond news aggregation.
+
+### Concept
+When users ask questions that need expert-level research (not just news), this feature searches:
+- **Hugging Face** - Find models, datasets, papers related to ML/AI topics
+- **arXiv** - Search academic papers for scientific/technical topics
+- **GitHub** - Find relevant repos, code examples, tools
+- **Stack Overflow** - Technical Q&A for programming questions
+- **PubMed** - Medical/biomedical research papers
+
+### Use Cases
+- "What's the best LLM for code generation?" → Search HuggingFace models + benchmarks
+- "Latest research on transformer architectures" → arXiv papers
+- "How do I implement RAG?" → GitHub repos + Stack Overflow
+- "Clinical trials for cancer treatment X" → PubMed papers
+
+### Phase 1: HuggingFace Integration ✅ DONE
+- [x] **1.1 Create HuggingFace service** - `mcp_server/services/huggingface_service.py`
+  - Search models by task (text-generation, translation, etc.)
+  - Search datasets
+  - Get daily papers and search papers
+  - XSS sanitization for all responses
+- [x] **1.2 Add MCP tools** - 3 tools added:
+  - `search_huggingface_models(query, task, sort, limit)`
+  - `search_huggingface_datasets(query, sort, limit)`
+  - `get_ml_papers(query, limit)`
+- [x] **1.3 Integrate into News Chat** - Added to system prompt as expert resource
+- [x] **1.4 Tests** - 16 tests in `tests/test_huggingface_service.py`
+
+### Phase 2: arXiv Papers ✅ DONE
+- [x] **2.1 Create arXiv service** - `mcp_server/services/arxiv_service.py`
+  - Search papers by query/category
+  - Get abstracts and PDF links
+  - University linking via Wikipedia
+  - XSS sanitization for all responses
+- [x] **2.2 Add MCP tools** - `search_arxiv(query, category, max_results)`, `get_arxiv_paper(arxiv_id)`
+- [x] **2.3 Categories**: cs.AI, cs.CL, cs.LG, cs.CV, cs.NE, stat.ML, cs.IR, cs.SE
+- [x] **2.4 Tests** - 39 tests in `tests/test_arxiv_service.py`
+
+### Phase 3: GitHub Search ✅ DONE
+- [x] **3.1 Create GitHub service** - `mcp_server/services/github_service.py`
+  - Search repos by topic/keywords
+  - Get README summaries
+  - Rate limiting (10 req/min unauthenticated, 30 with token)
+- [x] **3.2 Add MCP tool** - `search_github_repos(query, language, sort, limit, min_stars)`
+- [x] **3.3 Tests** - 44 tests in `tests/test_github_service.py`
+
+### Phase 3.5: API Caching ✅ DONE
+- [x] **3.5.1 Create cache utility** - `mcp_server/utils/cache.py`
+  - TTLCache class with time-based expiration
+  - Named caches for service isolation (github, arxiv, huggingface)
+  - Max size limits with LRU-style eviction
+  - Hit/miss stats tracking
+- [x] **3.5.2 Add cache to services**
+  - GitHub: 1 hour TTL, caches search_repos
+  - arXiv: 30 min TTL, caches search
+  - HuggingFace: 1 hour TTL, caches search_models, search_datasets
+- [x] **3.5.3 Cache stats endpoint** - GET `/cache/stats`
+- [x] **3.5.4 Tests** - 13 tests in `tests/test_cache.py`
+
+### Phase 3.6: Expert Research ✅ DONE
+- [x] **3.6.1 Create expert_research meta-tool**
+  - Combines arXiv + GitHub + HuggingFace in parallel async calls
+  - Cross-references results (marks repos implementing papers)
+  - Intelligent source selection based on query type
+- [x] **3.6.2 Integrate into News Chat**
+  - Added expert_research tool definition
+  - System prompt prioritizes it for broad technical questions
+
+### Phase 3.7: YouTube Context ✅ DONE
+- [x] **3.7.1 Create YouTube service** - `mcp_server/services/youtube_service.py`
+  - Search videos via web scraping (no API key needed)
+  - Extract transcripts via youtube-transcript-api v1.x
+  - Sanitize HTML/URL to prevent XSS
+  - Cache transcripts (24hr TTL)
+- [x] **3.7.2 Add MCP tools**
+  - `search_youtube(query, limit)` - Find educational videos
+  - `get_youtube_transcript(video_id)` - Extract spoken content
+- [x] **3.7.3 Tests** - 31 tests in `tests/test_youtube_service.py`
+- [x] **3.7.4 Use Cases**
+  - Find tutorials: "search_youtube('python async tutorial')"
+  - Get content without watching: "get_youtube_transcript('dQw4w9WgXcQ')"
+  - Research conference talks, lectures, explainers
+
+### Phase 3.8: Learning & Discovery Services ✅ DONE
+- [x] **3.8.1 Udemy Course Search** - `mcp_server/services/udemy_service.py`
+  - Search courses by topic via web scraping
+  - Filter by level (beginner, intermediate, expert)
+  - Filter by rating, free/paid
+  - Tool: `search_udemy(query, level, min_rating, free_only)`
+- [x] **3.8.2 Tech Conference Search** - `mcp_server/services/conference_service.py`
+  - Search conferences via confs.tech API (free, no key needed)
+  - Filter by topic, year, country, city
+  - Get CFP deadlines
+  - Tool: `search_conferences(topic, year, country, city)`
+- [x] **3.8.3 Newsletter Discovery** - `mcp_server/services/newsletter_service.py`
+  - Search newsletters via Substack scraping
+  - Curated list of popular tech newsletters
+  - Tools: `search_newsletters(query)`, `get_popular_newsletters(category)`
+- [x] **3.8.4 IMDB/Movie Search** - `mcp_server/services/imdb_service.py`
+  - Search movies/TV shows via OMDb API
+  - Get detailed info (plot, cast, ratings)
+  - Requires free API key from omdbapi.com
+  - Tools: `search_movies(query, type)`, `get_movie_details(imdb_id)`
+- [x] **3.8.5 IMDB Person Search** - Enhanced `mcp_server/services/imdb_service.py`
+  - Search actors/directors via IMDB web scraping
+  - Cross-reference with Wikipedia for bios
+  - Get filmography from person pages
+  - Tools: `search_person(name, include_wikipedia)`, `get_person_filmography(imdb_id, limit)`
+- [x] **3.8.6 Tests** - 38 tests in `tests/test_new_services.py`
+
+### Phase 4: Stack Overflow (Backlog)
+- [ ] **4.1 Create StackOverflow service** - `mcp_server/services/stackoverflow_service.py`
+  - Search questions by tags/keywords
+  - Get top answers
+  - API: https://api.stackexchange.com/2.3/search
+- [ ] **4.2 Add MCP tool** - `search_stackoverflow(query, tags, limit)`
+
+### Future Extensions
+- [ ] **PubMed** for medical research
+- [ ] **Semantic Scholar** for academic papers
+- [ ] **Papers With Code** for ML papers with implementations
+- [ ] **Result synthesis** - Combine results from multiple sources into summary
+
+### Technical Notes
+- All services should have XSS sanitization (like Wikipedia service)
+- HTTP timeouts: 10-15 seconds
+- Rate limiting awareness for free APIs
+- ✅ API responses cached to reduce calls (TTLCache, 30min-1hr TTL)
+- ✅ expert_research combines multiple sources with parallel async
+
+---
+
+## Wikipedia Knowledge Service
+
+### Improvements Needed
+- [ ] **Fix image rendering in chat** - Markdown images not displaying in News Chat
+- [ ] **Better formatting of Wikipedia results** - LLM not consistently following format instructions
+- [ ] **Fallback to search** - When exact title not found, use search API
+- [ ] **Multi-language auto-detection** - Detect user's query language and use matching Wikipedia
+
+### Future Enhancements
+- [ ] **Wikipedia Caching** - Store fetched articles locally in SQLite FTS
+- [ ] **Knowledge base** - Build cache of frequently accessed topics (companies, people, places)
+- [ ] **Auto-expire** - TTL-based cache invalidation, refresh on demand
+- [ ] **Reduce API calls** - Use cached knowledge for repeated queries
+
+---
+
 ## Translation Service Integration
 
 ### Overview

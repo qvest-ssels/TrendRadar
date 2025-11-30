@@ -12,4 +12,6 @@ if tests are flaky, try to fix them or mark them as xfail with explanation
 after commits or user visible changes, ask to restart the component so its usable
 rigid checks for strings, secrets and output to prevent leaking sensitive data, cross site scripting, injection attacks
 ---
-never use node.js
+never use node.js or npm or yarn or similar tools
+---
+rememberimg stuff. IDEAs.md is for broader ideas or big features. TODOs.md is for a specific backlog

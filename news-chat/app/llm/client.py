@@ -60,20 +60,37 @@ class LLMClient:
                 stream=False  # Need full response to check for tools
             )
             
-            message = response.get("message", {})
-            tool_calls = message.get("tool_calls", [])
+            # Handle both dict-style and object-style responses from ollama
+            message = response.get("message", {}) if hasattr(response, 'get') else response.message
+            
+            # Get tool_calls - handle both dict and object access
+            if hasattr(message, 'tool_calls'):
+                tool_calls = message.tool_calls or []
+            else:
+                tool_calls = message.get("tool_calls", []) if isinstance(message, dict) else []
             
             # If there are tool calls, execute them
             if tool_calls and tool_executor:
                 logger.info(f"LLM requested {len(tool_calls)} tool call(s)")
                 
-                # Add assistant message with tool calls
-                messages.append(message)
+                # Add assistant message with tool calls (convert to dict for message history)
+                if hasattr(message, 'model_dump'):
+                    messages.append(message.model_dump())
+                elif hasattr(message, '__dict__'):
+                    messages.append(dict(message))
+                else:
+                    messages.append(message)
                 
                 # Execute each tool call
                 for tool_call in tool_calls:
-                    func_name = tool_call["function"]["name"]
-                    func_args = tool_call["function"]["arguments"]
+                    # Handle both dict and object access for tool_call
+                    if hasattr(tool_call, 'function'):
+                        func = tool_call.function
+                        func_name = func.name if hasattr(func, 'name') else func.get('name')
+                        func_args = func.arguments if hasattr(func, 'arguments') else func.get('arguments', {})
+                    else:
+                        func_name = tool_call["function"]["name"]
+                        func_args = tool_call["function"]["arguments"]
                     
                     yield f"\n🔧 *Calling {func_name}...*\n"
                     
@@ -100,12 +117,20 @@ class LLMClient:
                     messages=messages,
                     stream=True
                 ):
-                    content = chunk.get("message", {}).get("content", "")
+                    # Handle both dict and object access for chunk
+                    if hasattr(chunk, 'message'):
+                        chunk_msg = chunk.message
+                        content = chunk_msg.content if hasattr(chunk_msg, 'content') else ""
+                    else:
+                        content = chunk.get("message", {}).get("content", "")
                     if content:
                         yield content
             else:
                 # No tool calls, just yield the response
-                content = message.get("content", "")
+                if hasattr(message, 'content'):
+                    content = message.content or ""
+                else:
+                    content = message.get("content", "") if isinstance(message, dict) else ""
                 if content:
                     yield content
                     

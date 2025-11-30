@@ -162,3 +162,6 @@ woodchuck-news/.venv/
 news-chat/.news_chat.pid
 news-chat/.venv/
 news-chat/server.log
+
+# random vim notes
+random.txt

@@ -157,6 +157,32 @@ class ParserService:
             date = datetime.now()
         return date.strftime("%Y-%m-%d")
 
+    def _find_most_recent_date(self) -> Optional[str]:
+        """
+        Find the most recent date folder that has txt data.
+
+        Returns:
+            Date folder name (YYYY-MM-DD) or None if no data found
+        """
+        output_dir = self.project_root / "output"
+        if not output_dir.exists():
+            return None
+
+        # Find all date folders
+        date_folders = []
+        for item in output_dir.iterdir():
+            if item.is_dir() and len(item.name) == 10:  # YYYY-MM-DD format
+                txt_dir = item / "txt"
+                if txt_dir.exists() and any(txt_dir.glob("*.txt")):
+                    date_folders.append(item.name)
+
+        if not date_folders:
+            return None
+
+        # Return the most recent date
+        date_folders.sort(reverse=True)
+        return date_folders[0]
+
     def read_all_titles_for_date(
         self,
         date: datetime = None,
@@ -198,10 +224,22 @@ class ParserService:
         txt_dir = self.project_root / "output" / date_folder / "txt"
 
         if not txt_dir.exists():
-            raise DataNotFoundError(
-                f"未找到 {date_folder} 的数据目录",
-                suggestion="请先运行爬虫或检查日期是否正确"
-            )
+            # Fallback: try to find the most recent available date
+            if date is None:
+                fallback_date = self._find_most_recent_date()
+                if fallback_date:
+                    date_folder = fallback_date
+                    txt_dir = self.project_root / "output" / date_folder / "txt"
+                else:
+                    raise DataNotFoundError(
+                        f"未找到 {date_folder} 的数据目录",
+                        suggestion="请先运行爬虫或检查日期是否正确"
+                    )
+            else:
+                raise DataNotFoundError(
+                    f"未找到 {date_folder} 的数据目录",
+                    suggestion="请先运行爬虫或检查日期是否正确"
+                )
 
         all_titles = {}
         id_to_name = {}

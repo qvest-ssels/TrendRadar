@@ -201,6 +201,19 @@ platforms:
       search_url: "https://slashdot.org/index2.pl?fhfilter={query}"
       requires_js: true
       rate_limit: 2.0
+  - id: "wsj"
+    name: "Wall Street Journal"
+    language: "en"
+    has_paywall: true
+    crawler:
+      type: "rss"
+      url_template: "https://feeds.a.dj.com/rss/RSSWorldNews.xml"
+    search:
+      enabled: false
+      type: "url_pattern"
+      search_url: "https://www.wsj.com/search?query={query}"
+      requires_js: true
+      rate_limit: 2.0
   - id: "lemonde"
     name: "Le Monde"
     language: "fr"

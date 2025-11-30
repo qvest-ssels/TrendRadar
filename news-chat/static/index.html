@@ -225,17 +225,38 @@
             </div>
         </div>
         
-        <!-- Footer with journalism support message -->
+        <!-- Footer with journalism support message and quote of the day -->
         <footer class="text-center py-2 text-xs text-gray-400 border-t bg-gray-50">
-            <span>📰 Quality journalism costs money.</span>
-            <span class="mx-1">•</span>
-            <span>Consider <strong>subscribing</strong> to outlets you read.</span>
-            <span class="mx-1">•</span>
-            <span id="query-counter" class="text-gray-500"></span>
+            <div>
+                <span>📰 Quality journalism costs money.</span>
+                <span class="mx-1">•</span>
+                <span>Consider <strong>subscribing</strong> to outlets you read.</span>
+                <span class="mx-1">•</span>
+                <span id="query-counter" class="text-gray-500"></span>
+                <span class="mx-1">•</span>
+                <span id="token-counter" class="text-gray-500">🔥 0 tokens burned</span>
+            </div>
+            <div id="quote-of-day" class="mt-1 italic text-gray-500"></div>
+            <div class="mt-1 text-gray-400">♻️ Consider not printing this page</div>
         </footer>
     </div>
     
     <script>
+        // Quotes of the day
+        const quotes = [
+            "~~mp3 is killing the music industry~~ vibe coding is killing software development",
+            "do LLMs 🤖 dream 💭💤🛌😴🤔 of analog sheep 🐑?",
+            "all LLMs are trained by us",
+            "my artificial assistant is an AI subject matter expert"
+        ];
+        
+        // Show random quote
+        function showQuoteOfDay() {
+            const quoteEl = document.getElementById('quote-of-day');
+            const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+            quoteEl.textContent = `"${randomQuote}"`;
+        }
+        
         // Chat state
         let messages = [];
         let isStreaming = false;
@@ -532,6 +553,9 @@
                                         fullContent += parsed.content;
                                         contentDiv.innerHTML = formatContent(fullContent);
                                         chatMessages.scrollTop = chatMessages.scrollHeight;
+                                        // Count tokens (approximate: each chunk is roughly a token)
+                                        tokenCount++;
+                                        document.getElementById('token-counter').textContent = `🔥 ${tokenCount} tokens burned`;
                                     }
                                 } catch (e) {
                                     // Ignore parse errors
@@ -581,6 +605,9 @@
         checkStatus();
         setInterval(checkStatus, 30000);
         
+        // Show quote of the day
+        showQuoteOfDay();
+        
         // Energy cycle indicator - 22 emojis telling the energy story
         const energyCycle = [
             { emoji: '🌍', message: 'Earth — Our shared home' },
@@ -614,6 +641,7 @@
         ];
         let energyIndex = 0;
         let queryCount = 0;
+        let tokenCount = 0;
         let energyFastInterval = null;
         const energyIndicator = document.getElementById('energy-indicator');
         const energyMessage = document.getElementById('energy-message');

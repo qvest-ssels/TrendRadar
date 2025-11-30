@@ -155,6 +155,38 @@ MCP_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "deep_search",
+            "description": "Deep search for news on a specific topic. Combines local headlines with live search on news sites. Use for researching specific people, companies, events, or topics. Best for: 'news about Elon Musk', 'latest Tesla news', 'climate change coverage'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query - person name, company, event, or topic"
+                    },
+                    "platforms": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional: Specific platforms to search (e.g., ['theguardian', 'spiegel'])"
+                    },
+                    "language": {
+                        "type": "string",
+                        "enum": ["en", "de", "fr", "zh"],
+                        "description": "Optional: Filter by language"
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["headlines", "site_search", "both"],
+                        "description": "Search mode: 'headlines' (fast, local), 'site_search' (thorough, live), 'both' (recommended)"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "translate_text",
             "description": "Translate text between languages. Use when user asks for translation or to understand foreign headlines.",
             "parameters": {
@@ -174,6 +206,32 @@ MCP_TOOLS = [
                     }
                 },
                 "required": ["text", "target_language"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_wikipedia_context",
+            "description": "Get Wikipedia background info for a topic. Use when users ask 'Who is X?', 'What is Y?', or need context about a person, company, or event mentioned in news.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "topic": {
+                        "type": "string",
+                        "description": "Topic to look up (person, company, event, etc.)"
+                    },
+                    "language": {
+                        "type": "string",
+                        "enum": ["en", "de", "fr", "es", "zh", "ja", "ru", "pt", "ar", "ko"],
+                        "description": "Wikipedia language (default: en)"
+                    },
+                    "include_related": {
+                        "type": "boolean",
+                        "description": "Include related topics (default: false)"
+                    }
+                },
+                "required": ["topic"]
             }
         }
     },
@@ -204,6 +262,186 @@ MCP_TOOLS = [
                 "required": []
             }
         }
+    },
+    # Ask an Expert - HuggingFace tools
+    {
+        "type": "function",
+        "function": {
+            "name": "search_huggingface_models",
+            "description": "🧑‍🔬 Ask an Expert: Search HuggingFace for ML models. Use for questions about best models, LLMs, ML tools.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (e.g., 'code generation', 'llama', 'sentiment')"
+                    },
+                    "task": {
+                        "type": "string",
+                        "enum": ["text-generation", "text-classification", "translation", "summarization", "conversational", "text-to-image", "automatic-speech-recognition", "feature-extraction"],
+                        "description": "Filter by task type (optional)"
+                    },
+                    "sort": {
+                        "type": "string",
+                        "enum": ["downloads", "likes", "created", "modified"],
+                        "description": "Sort by (default: downloads)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 10)"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_huggingface_datasets",
+            "description": "🧑‍🔬 Ask an Expert: Search HuggingFace for ML datasets. Use for questions about training data, benchmarks.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (e.g., 'sentiment', 'code', 'medical')"
+                    },
+                    "sort": {
+                        "type": "string",
+                        "enum": ["downloads", "likes", "created", "modified"],
+                        "description": "Sort by (default: downloads)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 10)"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_ml_papers",
+            "description": "🧑‍🔬 Ask an Expert: Get latest ML/AI research papers from HuggingFace Daily Papers or search by topic.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (optional - if empty, returns latest papers)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 10)"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    # Ask an Expert - arXiv papers
+    {
+        "type": "function",
+        "function": {
+            "name": "search_arxiv",
+            "description": "🧑‍🔬 Ask an Expert: Search arXiv for academic research papers. Best for scientific/technical research.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (e.g., 'large language models', 'quantum computing', 'neural networks')"
+                    },
+                    "category": {
+                        "type": "string",
+                        "enum": ["cs.AI", "cs.CL", "cs.LG", "cs.CV", "cs.NE", "stat.ML", "cs.IR", "cs.SE"],
+                        "description": "arXiv category (optional). cs.AI=AI, cs.CL=NLP, cs.LG=ML, cs.CV=Computer Vision, cs.NE=Neural, stat.ML=Statistics ML"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Max results (default: 10)"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    # Ask an Expert - GitHub repos
+    {
+        "type": "function",
+        "function": {
+            "name": "search_github_repos",
+            "description": "🧑‍🔬 Ask an Expert: Search GitHub for open source repositories and libraries.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (e.g., 'web scraping', 'machine learning', 'react components')"
+                    },
+                    "language": {
+                        "type": "string",
+                        "enum": ["python", "javascript", "typescript", "java", "go", "rust", "c", "cpp", "csharp", "ruby", "php", "swift", "kotlin"],
+                        "description": "Filter by programming language (optional)"
+                    },
+                    "sort": {
+                        "type": "string",
+                        "enum": ["stars", "forks", "updated", "best-match"],
+                        "description": "Sort by (default: stars)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 10)"
+                    },
+                    "min_stars": {
+                        "type": "integer",
+                        "description": "Minimum star count (optional)"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    # Ask an Expert - Combined research
+    {
+        "type": "function",
+        "function": {
+            "name": "expert_research",
+            "description": "🧑‍🔬 Ask an Expert: PREFERRED for broad technical questions. Combines arXiv papers + GitHub repos + HuggingFace models into one comprehensive result.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Research topic (e.g., 'RAG retrieval augmented generation', 'vision transformers', 'sentiment analysis')"
+                    },
+                    "include_papers": {
+                        "type": "boolean",
+                        "description": "Include arXiv papers (default: true)"
+                    },
+                    "include_repos": {
+                        "type": "boolean",
+                        "description": "Include GitHub repos (default: true)"
+                    },
+                    "include_models": {
+                        "type": "boolean",
+                        "description": "Include HuggingFace models (default: true)"
+                    },
+                    "include_datasets": {
+                        "type": "boolean",
+                        "description": "Include HuggingFace datasets (default: false)"
+                    },
+                    "max_results_per_source": {
+                        "type": "integer",
+                        "description": "Max results per source (default: 5)"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
     }
 ]
 
@@ -211,10 +449,17 @@ MCP_TOOLS = [
 # System prompt for the news assistant
 SYSTEM_PROMPT = """You are Woodchuck 🦫, a friendly news assistant for Woodchuck News.
 
-CRITICAL RULES:
-1. NEVER make up or hallucinate headlines. Only use data from tool results.
-2. If a tool returns an error or no results, say "I couldn't find any results" - don't invent data.
-3. If tool results are empty, acknowledge this honestly.
+CRITICAL RULES - YOU MUST FOLLOW THESE:
+1. YOU MUST CALL A TOOL to get news data. NEVER generate fake headlines.
+2. NEVER make up URLs - only use URLs returned by tools.
+3. If you don't have real data from a tool, say "I need to fetch the data" and call a tool.
+4. If a tool returns an error or no results, say "I couldn't find any results" - don't invent data.
+5. Every headline you show MUST come from tool results - NO EXCEPTIONS.
+
+MANDATORY: When user asks for news, headlines, or any information:
+→ FIRST call get_latest_news or search_news to get REAL data
+→ THEN present only the headlines from the tool response
+→ NEVER skip the tool call and generate your own headlines
 
 Your personality:
 - Friendly, helpful, and conversational
@@ -225,18 +470,78 @@ IMPORTANT - Tool Selection Guidelines:
 - For "latest news", "recent headlines", "what's happening": Use get_latest_news (NOT search_news)
 - For "technology news", "tech headlines", etc.: Use get_latest_news first (with heise or slashdot for tech), then filter/highlight tech stories
 - For specific topics like "AI news", "climate news": Use search_news with the exact keyword
-- For specific companies/names (Tesla, Apple, etc.): Use search_news
-- search_news only finds headlines containing the EXACT keyword - general terms like "technology" may not match
+- For specific people (Elon Musk, Trump, etc.): Use deep_search - it searches across sites
+- For specific companies (Tesla, Apple, etc.): Use deep_search - more thorough than search_news
+- For in-depth research on any topic: Use deep_search with mode="both"
+- For "Who is X?", "What is Y?", background info: Use get_wikipedia_context
+- search_news only finds headlines containing the EXACT keyword - for better results use deep_search
+
+DEEP SEARCH (deep_search tool):
+- Best for: researching specific people, companies, events
+- Searches both local headlines AND live news sites
+- Example: "news about Elon Musk" → deep_search(query="Elon Musk", mode="both")
+- Example: "Tesla news in German" → deep_search(query="Tesla", language="de")
+- Supports: theguardian, spiegel, aljazeera, heise, lemonde, straitstimes, timesofindia
+
+WIKIPEDIA CONTEXT (get_wikipedia_context tool):
+- Use for: "Who is X?", "What is Y?", "Tell me about Z", background info
+- Provides Wikipedia summary, description, and link
+- Supports multiple languages (en, de, fr, zh, ja, etc.)
+- Example: "Who is Elon Musk?" → get_wikipedia_context(topic="Elon Musk")
+- Example: "Was ist Tesla?" → get_wikipedia_context(topic="Tesla, Inc.", language="de")
+- Great for providing context alongside news results
+- IMPORTANT: When presenting Wikipedia results:
+  1. If "thumbnail_image_url" exists, show the image: ![Title](thumbnail_image_url)
+  2. Present the extract/summary text
+  3. End with article link using "url" field: [Read more on Wikipedia](url)
+  4. NEVER use thumbnail_image_url as a clickable link - it's just an image!
+
+🧑‍🔬 ASK AN EXPERT - Technical Research Tools:
+
+**PREFERRED: expert_research** - Use for broad technical questions!
+This combines arXiv papers + GitHub repos + HuggingFace models in one call:
+- "How do I build a RAG system?" → expert_research(query="RAG retrieval augmented generation")
+- "State of the art in image generation" → expert_research(query="diffusion models image generation")
+- "Best approaches for sentiment analysis" → expert_research(query="sentiment analysis NLP")
+- Returns: papers (research), repos (implementations), models (pre-trained)
+
+**Individual tools** - Use for specific narrow queries:
+
+- search_huggingface_models: Find ML models for specific tasks
+  - "Best LLM for code generation" → search_huggingface_models(query="code generation", task="text-generation")
+
+- search_huggingface_datasets: Find training/benchmark datasets
+  - "Datasets for sentiment analysis" → search_huggingface_datasets(query="sentiment")
+
+- get_ml_papers: Latest AI/ML research papers
+  - "Latest AI research" → get_ml_papers()
+
+- search_arxiv: Academic papers with university affiliations
+  - "NLP papers about BERT" → search_arxiv(query="BERT", category="cs.CL")
+
+- search_github_repos: Open source projects and libraries
+  - "Python web scraping libraries" → search_github_repos(query="web scraping", language="python")
+
+When presenting expert_research results:
+- 📄 **Papers**: Show title, authors, and arXiv link
+- 📦 **Repos**: Show name, stars, and GitHub link  
+- 🤗 **Models**: Show name, downloads, and HuggingFace link
+- Highlight repos marked "likely_implements_paper" - these are implementations!
+- For GitHub repos: Show name, description, stars, language, and URL
+- If paper has university affiliations, include them for credibility
+- Format as clean lists, not raw JSON
 
 AVAILABLE PLATFORMS (use only these):
 Tech/Science: heise, slashdot
 German: spiegel, tagesspiegel, heise
-English: theguardian, guardianau, aljazeera, straitstimes, japantimes, timesofindia, timesofisrael, dailymaverick
+English: theguardian, guardianau, aljazeera, straitstimes, japantimes, timesofindia, timesofisrael, dailymaverick, wsj
 French: lemonde
 Spanish: elpais, elpais_mexico
 Portuguese: folha
 Russian: moscowtimes
 Chinese: zhihu, weibo, baidu, toutiao, bilibili-hot-search, thepaper, douyin, ifeng, tieba, cls-hot, wallstreetcn-hot
+
+Note: wsj (Wall Street Journal) has a paywall - show 🔒 archive links when available.
 
 DO NOT use platforms that don't exist (like techcrunch, forbes, engadget, bbc, etc.)
 

@@ -40,18 +40,19 @@ def get_supported_platforms() -> List[str]:
         return []
 
 
-def validate_platforms(platforms: Optional[List[str]]) -> List[str]:
+def validate_platforms(platforms: Optional[List[str]], strict: bool = False) -> List[str]:
     """
     验证平台列表
 
     Args:
         platforms: 平台ID列表，None表示使用 config.yaml 中配置的所有平台
+        strict: If True, raise error for invalid platforms. If False, filter them out.
 
     Returns:
         验证后的平台列表
 
     Raises:
-        InvalidParameterError: 平台不支持
+        InvalidParameterError: 平台不支持 (only when strict=True)
 
     Note:
         - platforms=None 时，返回 config.yaml 中配置的平台列表
@@ -78,11 +79,21 @@ def validate_platforms(platforms: Optional[List[str]]) -> List[str]:
 
     # 验证每个平台是否在配置中
     invalid_platforms = [p for p in platforms if p not in supported_platforms]
+    valid_platforms = [p for p in platforms if p in supported_platforms]
+    
     if invalid_platforms:
-        raise InvalidParameterError(
-            f"不支持的平台: {', '.join(invalid_platforms)}",
-            suggestion=f"支持的平台（来自config.yaml）: {', '.join(supported_platforms)}"
-        )
+        if strict:
+            raise InvalidParameterError(
+                f"不支持的平台: {', '.join(invalid_platforms)}",
+                suggestion=f"支持的平台（来自config.yaml）: {', '.join(supported_platforms)}"
+            )
+        else:
+            # Non-strict mode: filter out invalid, return valid or all if none valid
+            print(f"警告：忽略不支持的平台: {', '.join(invalid_platforms)}")
+            if not valid_platforms:
+                # If all requested platforms are invalid, return all supported platforms
+                return supported_platforms
+            return valid_platforms
 
     return platforms
 

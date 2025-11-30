@@ -2,7 +2,7 @@
 
 ## 📋 概述
 
-TrendRadar 通过 MCP (Model Context Protocol) 提供 13 个专业工具，涵盖新闻数据查询、分析、搜索和系统管理功能。
+TrendRadar 通过 MCP (Model Context Protocol) 提供 15 个专业工具，涵盖新闻数据查询、分析、搜索、知识库和系统管理功能。
 
 ## 🛠️ 工具分类
 
@@ -221,6 +221,21 @@ for item in news:
 
 # 搜索特定话题
 results = search_news("人工智能", platforms=['zhihu'])
+
+# 深度搜索（结合本地缓存和站点搜索）
+deep_results = deep_search("Elon Musk", language="en", mode="both")
+```
+
+### 知识库查询
+```python
+# 获取Wikipedia背景信息
+context = get_wikipedia_context("Tesla, Inc.", language="en")
+print(f"描述: {context['description']}")
+print(f"摘要: {context['extract'][:200]}...")
+print(f"链接: {context['url']}")
+
+# 多语言知识对比
+multi = get_wikipedia_context("Berlin", language="de")
 ```
 
 ### 趋势分析
