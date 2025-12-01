@@ -309,6 +309,122 @@ class WikipediaService:
         
         return result
     
+    def get_user(
+        self,
+        username: str,
+        language: str = "en"
+    ) -> Dict[str, Any]:
+        """
+        Look up Wikipedia user information.
+        
+        Args:
+            username: Wikipedia username to look up
+            language: Wikipedia language code
+            
+        Returns:
+            Dict with user info (edit count, registration, groups, etc.)
+        """
+        lang = language.lower()
+        if lang not in self.SEARCH_ENDPOINTS:
+            lang = "en"
+        
+        api_url = self.SEARCH_ENDPOINTS[lang]
+        
+        if not username or not username.strip():
+            return {
+                "success": False,
+                "error": "Username is required",
+                "username": username
+            }
+        
+        username = username.strip()
+        
+        try:
+            # Query user info via MediaWiki API
+            params = {
+                "action": "query",
+                "list": "users",
+                "ususers": username,
+                "usprop": "editcount|registration|groups|blockinfo|gender",
+                "format": "json"
+            }
+            
+            response = self.session.get(api_url, params=params, timeout=10)
+            
+            if response.status_code != 200:
+                return {
+                    "success": False,
+                    "error": f"Wikipedia API returned status {response.status_code}",
+                    "username": username
+                }
+            
+            data = response.json()
+            users = data.get("query", {}).get("users", [])
+            
+            if not users:
+                return {
+                    "success": False,
+                    "error": "User not found",
+                    "username": username
+                }
+            
+            user_data = users[0]
+            
+            # Check if user exists (missing key indicates non-existent user)
+            if "missing" in user_data:
+                return {
+                    "success": False,
+                    "error": "User does not exist",
+                    "username": username
+                }
+            
+            # Get user contributions count
+            contrib_params = {
+                "action": "query",
+                "list": "usercontribs",
+                "ucuser": username,
+                "uclimit": "1",
+                "ucprop": "timestamp",
+                "format": "json"
+            }
+            
+            contrib_response = self.session.get(api_url, params=contrib_params, timeout=10)
+            last_edit = None
+            if contrib_response.status_code == 200:
+                contrib_data = contrib_response.json()
+                contribs = contrib_data.get("query", {}).get("usercontribs", [])
+                if contribs:
+                    last_edit = contribs[0].get("timestamp")
+            
+            # Build user profile URL
+            user_page_url = f"https://{lang}.wikipedia.org/wiki/User:{quote(username)}"
+            user_contribs_url = f"https://{lang}.wikipedia.org/wiki/Special:Contributions/{quote(username)}"
+            
+            return {
+                "success": True,
+                "username": sanitize_html(user_data.get("name", username)),
+                "user_id": user_data.get("userid"),
+                "edit_count": user_data.get("editcount", 0),
+                "registration": user_data.get("registration"),
+                "groups": user_data.get("groups", []),
+                "gender": user_data.get("gender", "unknown"),
+                "blocked": "blockid" in user_data,
+                "block_reason": sanitize_html(user_data.get("blockreason", "")) if "blockid" in user_data else None,
+                "last_edit": last_edit,
+                "user_page_url": sanitize_url(user_page_url),
+                "contributions_url": sanitize_url(user_contribs_url),
+                "language": lang,
+                "source": "wikipedia"
+            }
+            
+        except Exception as e:
+            logger.error(f"Wikipedia user lookup error: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "username": username
+            }
+    
     def get_multi_language(
         self,
         topic: str,

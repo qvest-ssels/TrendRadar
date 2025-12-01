@@ -184,3 +184,111 @@ class TestSingleton:
         service2 = get_wikipedia_service()
         
         assert service1 is service2
+
+
+class TestUserLookup:
+    """Test Wikipedia user lookup functionality."""
+    
+    @pytest.fixture
+    def service(self):
+        return WikipediaService()
+    
+    def test_get_user_requires_username(self, service):
+        """Test that username is required."""
+        result = service.get_user("")
+        assert result["success"] is False
+        assert "required" in result["error"].lower()
+    
+    @pytest.mark.timeout(5)
+    def test_get_user_returns_dict(self, service):
+        """Test that get_user returns a dictionary."""
+        with patch.object(service.session, 'get') as mock_get:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "query": {
+                    "users": [{
+                        "name": "TestUser",
+                        "userid": 12345,
+                        "editcount": 100,
+                        "registration": "2020-01-01T00:00:00Z",
+                        "groups": ["*", "user", "autoconfirmed"],
+                        "gender": "unknown"
+                    }]
+                }
+            }
+            mock_get.return_value = mock_response
+            
+            result = service.get_user("TestUser")
+            assert isinstance(result, dict)
+            assert "success" in result
+    
+    @pytest.mark.timeout(5)
+    def test_get_user_extracts_info(self, service):
+        """Test that user info is extracted correctly."""
+        with patch.object(service.session, 'get') as mock_get:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "query": {
+                    "users": [{
+                        "name": "JimboWales",
+                        "userid": 24,
+                        "editcount": 5000,
+                        "registration": "2001-03-27T00:00:00Z",
+                        "groups": ["*", "user", "sysop", "bureaucrat"],
+                        "gender": "male"
+                    }]
+                }
+            }
+            mock_get.return_value = mock_response
+            
+            result = service.get_user("JimboWales")
+            assert result["success"] is True
+            assert result["username"] == "JimboWales"
+            assert result["edit_count"] == 5000
+            assert "sysop" in result["groups"]
+    
+    @pytest.mark.timeout(5)
+    def test_get_user_handles_missing_user(self, service):
+        """Test handling of non-existent user."""
+        with patch.object(service.session, 'get') as mock_get:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "query": {
+                    "users": [{
+                        "name": "NonExistentUser12345",
+                        "missing": ""
+                    }]
+                }
+            }
+            mock_get.return_value = mock_response
+            
+            result = service.get_user("NonExistentUser12345")
+            assert result["success"] is False
+            assert "not exist" in result["error"].lower() or "not found" in result["error"].lower()
+    
+    @pytest.mark.timeout(5)
+    def test_get_user_includes_urls(self, service):
+        """Test that user page URLs are included."""
+        with patch.object(service.session, 'get') as mock_get:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "query": {
+                    "users": [{
+                        "name": "TestUser",
+                        "userid": 123,
+                        "editcount": 50,
+                        "groups": ["*", "user"]
+                    }]
+                }
+            }
+            mock_get.return_value = mock_response
+            
+            result = service.get_user("TestUser")
+            assert result["success"] is True
+            assert "user_page_url" in result
+            assert "contributions_url" in result
+            assert "wikipedia.org" in result["user_page_url"]

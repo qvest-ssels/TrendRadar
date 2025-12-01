@@ -18,6 +18,7 @@ from .udemy_service import UdemyService, get_udemy_service
 from .conference_service import ConferenceService, get_conference_service
 from .newsletter_service import NewsletterService, get_newsletter_service
 from .imdb_service import IMDBService, get_imdb_service
+from .people_service import PeopleService, get_people_service
 
 __all__ = [
     'DataService',
@@ -48,4 +49,6 @@ __all__ = [
     'get_newsletter_service',
     'IMDBService',
     'get_imdb_service',
+    'PeopleService',
+    'get_people_service',
 ]

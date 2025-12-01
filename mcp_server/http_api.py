@@ -27,6 +27,7 @@ from .server import (
     deep_search,
     get_wikipedia_context,
     search_wikipedia,
+    get_wikipedia_user,
     search_huggingface_models,
     search_huggingface_datasets,
     get_ml_papers,
@@ -43,6 +44,8 @@ from .server import (
     get_movie_details,
     search_person,
     get_person_filmography,
+    search_politician,
+    search_people,
 )
 
 # Import data layer for FTS search
@@ -110,6 +113,7 @@ async def list_tools():
             {"name": "deep_search", "description": "Deep search - combines local cache with live site search"},
             {"name": "get_wikipedia_context", "description": "Get Wikipedia background info for a topic"},
             {"name": "search_wikipedia", "description": "Search Wikipedia for articles"},
+            {"name": "get_wikipedia_user", "description": "👤 Look up Wikipedia user info"},
             {"name": "search_huggingface_models", "description": "🧑‍🔬 Ask an Expert: Search HuggingFace for ML models"},
             {"name": "search_huggingface_datasets", "description": "🧑‍🔬 Ask an Expert: Search HuggingFace for datasets"},
             {"name": "get_ml_papers", "description": "🧑‍🔬 Ask an Expert: Get latest ML/AI research papers"},
@@ -126,6 +130,8 @@ async def list_tools():
             {"name": "get_movie_details", "description": "🎥 Get detailed movie/show information"},
             {"name": "search_person", "description": "👤 Search for actors, directors, etc."},
             {"name": "get_person_filmography", "description": "🎭 Get filmography for a person"},
+            {"name": "search_politician", "description": "🏛️ Search for politicians (German Bundestag)"},
+            {"name": "search_people", "description": "🔍 General people search via Wikipedia"},
         ]
     }
 
@@ -507,6 +513,12 @@ async def call_tool(tool_name: str, request: ToolRequest):
                 limit=args.get("limit", 5)
             )
         
+        elif tool_name == "get_wikipedia_user":
+            result = await get_wikipedia_user.fn(
+                username=args.get("username", ""),
+                language=args.get("language", "en")
+            )
+        
         # Ask an Expert - HuggingFace tools
         elif tool_name == "search_huggingface_models":
             result = await search_huggingface_models.fn(
@@ -630,6 +642,20 @@ async def call_tool(tool_name: str, request: ToolRequest):
             result = await get_person_filmography.fn(
                 imdb_id=args.get("imdb_id"),
                 limit=args.get("limit", 20)
+            )
+        
+        elif tool_name == "search_politician":
+            result = await search_politician.fn(
+                name=args.get("name"),
+                party=args.get("party"),
+                country=args.get("country", "de")
+            )
+        
+        elif tool_name == "search_people":
+            result = await search_people.fn(
+                name=args.get("name"),
+                person_type=args.get("person_type"),
+                language=args.get("language", "de")
             )
         
         else:

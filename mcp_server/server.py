@@ -792,6 +792,43 @@ async def search_wikipedia(
         }, ensure_ascii=False, indent=2)
 
 
+@mcp.tool
+async def get_wikipedia_user(
+    username: str,
+    language: str = "en"
+) -> str:
+    """
+    👤 Look up Wikipedia user information
+    
+    Get information about a Wikipedia editor/contributor.
+    
+    Args:
+        username: Wikipedia username to look up
+        language: Wikipedia language code (en, de, fr, etc.)
+    
+    Returns:
+        JSON with user info: edit count, registration date, groups, block status
+    
+    Examples:
+        Get info about a Wikipedia editor
+        → get_wikipedia_user(username="Jimbo Wales")
+    """
+    from .services.wikipedia_service import get_wikipedia_service
+    
+    try:
+        wiki = get_wikipedia_service()
+        result = wiki.get_user(username=username, language=language)
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "WIKIPEDIA_USER_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
 # =============================================================================
 # ASK AN EXPERT - HuggingFace Tools
 # =============================================================================
@@ -1855,6 +1892,111 @@ async def get_person_filmography(
             "success": False,
             "error": {
                 "code": "FILMOGRAPHY_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def search_politician(
+    name: str,
+    party: Optional[str] = None,
+    country: str = "de"
+) -> str:
+    """
+    🏛️ Search for politicians (specializes in German politicians)
+    
+    Search for politicians with data from official sources like Bundestag.de
+    and Wikipedia. Best results for German politicians (MdB).
+    
+    Args:
+        name: Politician's name (e.g., "Olaf Scholz", "Friedrich Merz")
+        party: Optional party filter (e.g., "SPD", "CDU", "Grüne")
+        country: Country code ("de" for Germany, default)
+    
+    Returns:
+        JSON with:
+        - name, party, role
+        - url: Link to official profile (Bundestag or Wikipedia)
+        - photo, birth_date, electoral_district (when available)
+        - Wikipedia summary if found
+    
+    Examples:
+        Search German chancellor
+        → search_politician(name="Olaf Scholz")
+        
+        Search CDU politicians
+        → search_politician(name="Merz", party="CDU")
+        
+        Search any politician
+        → search_politician(name="Angela Merkel")
+    """
+    from .services.people_service import get_people_service
+    
+    try:
+        service = get_people_service()
+        result = service.search_politician(
+            name=name,
+            party=party,
+            country=country
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "POLITICIAN_SEARCH_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def search_people(
+    name: str,
+    person_type: Optional[str] = None,
+    language: str = "de"
+) -> str:
+    """
+    🔍 General people search across Wikipedia and official sources
+    
+    Search for any person using Wikipedia and specialized sources.
+    For politicians, uses Bundestag.de as primary source.
+    
+    Args:
+        name: Person's name to search
+        person_type: Type hint - "politician", "bundestag", or None for general
+        language: Primary language ("de" or "en", default: "de")
+    
+    Returns:
+        JSON with:
+        - name, type, source
+        - url: Best available profile link
+        - description, extract from Wikipedia
+        - Additional fields depending on person type
+    
+    Examples:
+        Search German person
+        → search_people(name="Albert Einstein", language="de")
+        
+        Search for a Bundestag member
+        → search_people(name="Habeck", person_type="bundestag")
+    """
+    from .services.people_service import get_people_service
+    
+    try:
+        service = get_people_service()
+        result = service.search_person(
+            name=name,
+            person_type=person_type,
+            language=language
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "PEOPLE_SEARCH_ERROR",
                 "message": str(e)
             }
         }, ensure_ascii=False, indent=2)
