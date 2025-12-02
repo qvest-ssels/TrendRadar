@@ -173,14 +173,17 @@
                 <div class="bg-white rounded-lg p-4 shadow-sm max-w-[80%]">
                     <div class="message-content text-gray-800">
                         <p><strong>Welcome to News Chat!</strong> 👋</p>
-                        <p>I'm your AI news assistant connected to TrendRadar. I can help you:</p>
+                        <p>I'm your AI assistant connected to TrendRadar. I can help you:</p>
                         <ul class="list-disc">
-                            <li>Search for news on specific topics</li>
-                            <li>Find trending stories across regions</li>
-                            <li>Analyze media coverage and sentiment</li>
-                            <li>Translate headlines between languages</li>
+                            <li>📰 Search news across 30+ international sources</li>
+                            <li>🧑‍🔬 Research topics via arXiv, GitHub, HuggingFace</li>
+                            <li>🎬 Find YouTube tutorials & Udemy courses</li>
+                            <li>🎥 Look up movies, actors on IMDB</li>
+                            <li>🏛️ Search for politicians & public figures</li>
+                            <li>📖 Get Wikipedia background on any topic</li>
+                            <li>🌐 Translate headlines between languages</li>
                         </ul>
-                        <p class="mt-2">Try asking: <em>"What are today's top tech headlines?"</em></p>
+                        <p class="mt-2">Try: <em>"Who is Olaf Scholz?"</em> or <em>"Find Python ML tutorials"</em></p>
                     </div>
                 </div>
             </div>
@@ -213,15 +216,17 @@
                     Stop
                 </button>
             </form>
-            <div class="mt-2 flex gap-2 text-xs text-gray-500">
-                <span>Suggestions:</span>
+            <div class="mt-2 flex gap-2 text-xs text-gray-500 flex-wrap">
+                <span>Try:</span>
                 <button onclick="askQuestion('What are the top headlines today?')" class="hover:text-chat-600">Headlines</button>
                 <span>•</span>
-                <button onclick="askQuestion('What is trending in Europe?')" class="hover:text-chat-600">Europe</button>
+                <button onclick="askQuestion('Who is Friedrich Merz?')" class="hover:text-chat-600">Politicians</button>
                 <span>•</span>
-                <button onclick="askQuestion('Search for AI news')" class="hover:text-chat-600">AI News</button>
+                <button onclick="askQuestion('Find Python machine learning tutorials')" class="hover:text-chat-600">Tutorials</button>
                 <span>•</span>
-                <button onclick="askQuestion('List available news sources')" class="hover:text-chat-600">Sources</button>
+                <button onclick="askQuestion('Search for Inception movie')" class="hover:text-chat-600">Movies</button>
+                <span>•</span>
+                <button onclick="askQuestion('Research RAG systems')" class="hover:text-chat-600">Research</button>
             </div>
         </div>
         

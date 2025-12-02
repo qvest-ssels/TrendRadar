@@ -64,11 +64,11 @@
             overflow: hidden;
         }
         .chat-container.expanded {
-            max-height: 500px;
+            max-height: 350px;
             opacity: 1;
         }
         .chat-messages {
-            height: 300px;
+            height: 180px;
             overflow-y: auto;
         }
         .chat-message {
@@ -194,10 +194,8 @@
                         <div class="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                             <a href="/language/en/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100 rounded-t-lg">🇬🇧 English</a>
                             <a href="/language/de/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100">🇩🇪 Deutsch</a>
-                            <a href="/language/zh/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100">🇨🇳 中文</a>
-                            <a href="/language/ja/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100">🇯🇵 日本語</a>
-                            <a href="/language/ko/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100">🇰🇷 한국어</a>
-                            <a href="/language/es/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100 rounded-b-lg">🇪🇸 Español</a>
+                            <a href="/language/es/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100">🇪🇸 Español</a>
+                            <a href="/language/ar/" class="block px-4 py-2 text-gray-700 hover:bg-woodchuck-100 rounded-b-lg">🇸🇦 العربية</a>
                         </div>
                     </div>
                     
@@ -225,8 +223,9 @@
                 <a href="/region/eurasia/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">🇷🇺 Eurasia</a>
                 <a href="/region/americas/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">🌎 Americas</a>
                 <a href="/region/asia/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">🌏 Asia-Pacific</a>
-                <a href="/language/en/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">English</a>
-                <a href="/language/de/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">Deutsch</a>
+                <a href="/language/en/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">🇬🇧 English</a>
+                <a href="/language/de/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">🇩🇪 Deutsch</a>
+                <a href="/language/es/" class="block px-3 py-2 rounded-md hover:bg-woodchuck-700">🇪🇸 Español</a>
             </div>
         </div>
     </nav>
@@ -252,15 +251,15 @@
                             <div class="text-woodchuck-300 mt-1">Every query uses resources</div>
                         </div>
                     </div>
-                    <svg id="chat-chevron" class="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg id="chat-chevron" class="w-5 h-5 transform transition-transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </div>
             </button>
         </div>
         
-        <!-- Chat Container (collapsed by default) -->
-        <div id="chat-container" class="chat-container">
+        <!-- Chat Container (expanded by default) -->
+        <div id="chat-container" class="chat-container expanded">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
                 <!-- Error Message (hidden by default) -->
                 <div id="chat-error" class="hidden mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
@@ -274,12 +273,17 @@
                 
                 <!-- Chat Messages -->
                 <div id="chat-messages" class="chat-messages bg-white rounded-lg border border-woodchuck-200 p-4 mb-4">
-                    <div class="chat-message text-gray-500 text-sm text-center py-8">
+                    <div class="chat-message text-gray-500 text-sm text-center py-4">
                         <p class="mb-2">🦫 Hi! I'm Woodchuck AI.</p>
-                        <p>Ask me about the news! Try:</p>
-                        <p class="mt-2 text-woodchuck-600 italic">"What are the latest headlines?"</p>
-                        <p class="text-woodchuck-600 italic">"Show me news from Europe"</p>
-                        <p class="text-woodchuck-600 italic">"Translate this headline to English"</p>
+                        <p class="mb-2">I can help with news, research, movies, people & more:</p>
+                        <div class="flex flex-wrap justify-center gap-2 mt-2">
+                            <span class="bg-woodchuck-100 px-2 py-1 rounded text-woodchuck-700">📰 News</span>
+                            <span class="bg-woodchuck-100 px-2 py-1 rounded text-woodchuck-700">🧑‍🔬 Research</span>
+                            <span class="bg-woodchuck-100 px-2 py-1 rounded text-woodchuck-700">🎬 YouTube</span>
+                            <span class="bg-woodchuck-100 px-2 py-1 rounded text-woodchuck-700">🎥 Movies</span>
+                            <span class="bg-woodchuck-100 px-2 py-1 rounded text-woodchuck-700">🏛️ Politicians</span>
+                        </div>
+                        <p class="mt-3 text-woodchuck-600 italic">Try: "Who is Angela Merkel?" or "Find ML papers"</p>
                     </div>
                 </div>
                 
@@ -352,10 +356,10 @@
                 <div>
                     <h3 class="text-lg font-semibold mb-4">Languages</h3>
                     <ul class="space-y-2 text-woodchuck-300 text-sm">
-                        <li><a href="/language/en/" class="hover:text-white">English</a></li>
-                        <li><a href="/language/de/" class="hover:text-white">Deutsch</a></li>
-                        <li><a href="/language/zh/" class="hover:text-white">中文</a></li>
-                        <li><a href="/language/ja/" class="hover:text-white">日本語</a></li>
+                        <li><a href="/language/en/" class="hover:text-white">🇬🇧 English</a></li>
+                        <li><a href="/language/de/" class="hover:text-white">🇩🇪 Deutsch</a></li>
+                        <li><a href="/language/es/" class="hover:text-white">🇪🇸 Español</a></li>
+                        <li><a href="/language/ar/" class="hover:text-white">🇸🇦 العربية</a></li>
                     </ul>
                 </div>
             </div>
@@ -380,7 +384,7 @@
         // Chat Widget State
         const chatState = {
             connected: false,
-            expanded: false,
+            expanded: true,  // Open by default
             sending: false,
             messages: [],
             abortController: null

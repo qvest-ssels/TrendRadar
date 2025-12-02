@@ -442,12 +442,333 @@ MCP_TOOLS = [
                 "required": ["query"]
             }
         }
+    },
+    # Ask an Expert - YouTube
+    {
+        "type": "function",
+        "function": {
+            "name": "search_youtube",
+            "description": "🎬 Search YouTube for tutorials, educational videos, and tech content. Great for learning how-to guides.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (e.g., 'python tutorial', 'machine learning explained')"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 5)"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_youtube_transcript",
+            "description": "🎬 Get the transcript/captions from a YouTube video. Useful for summarizing video content.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "video_id": {
+                        "type": "string",
+                        "description": "YouTube video ID (the part after v= in the URL)"
+                    },
+                    "max_length": {
+                        "type": "integer",
+                        "description": "Max transcript length in characters (default: 10000)"
+                    }
+                },
+                "required": ["video_id"]
+            }
+        }
+    },
+    # Ask an Expert - Learning & Education
+    {
+        "type": "function",
+        "function": {
+            "name": "search_udemy",
+            "description": "📚 Search Udemy for online courses. Find courses on any topic with ratings and reviews.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (e.g., 'python programming', 'data science')"
+                    },
+                    "level": {
+                        "type": "string",
+                        "enum": ["beginner", "intermediate", "expert", "all"],
+                        "description": "Course difficulty level (optional)"
+                    },
+                    "min_rating": {
+                        "type": "number",
+                        "description": "Minimum rating 0-5 (default: 0)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 10)"
+                    },
+                    "free_only": {
+                        "type": "boolean",
+                        "description": "Only show free courses (default: false)"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_conferences",
+            "description": "🎤 Search for tech conferences and events. Find upcoming conferences by topic, location, or date.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "topic": {
+                        "type": "string",
+                        "description": "Conference topic (e.g., 'AI', 'DevOps', 'JavaScript')"
+                    },
+                    "year": {
+                        "type": "integer",
+                        "description": "Conference year (default: current year)"
+                    },
+                    "country": {
+                        "type": "string",
+                        "description": "Country code (e.g., 'DE', 'US', 'UK')"
+                    },
+                    "city": {
+                        "type": "string",
+                        "description": "City name"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 20)"
+                    },
+                    "include_past": {
+                        "type": "boolean",
+                        "description": "Include past conferences (default: false)"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_newsletters",
+            "description": "📰 Search for newsletters by topic. Find curated newsletters for tech, business, and more.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (e.g., 'AI', 'startup', 'programming')"
+                    },
+                    "category": {
+                        "type": "string",
+                        "enum": ["tech", "ai", "business", "design", "marketing", "finance", "startup", "programming"],
+                        "description": "Newsletter category (optional)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 10)"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_popular_newsletters",
+            "description": "⭐ Get popular/recommended newsletters by category. Curated list of quality newsletters.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "enum": ["tech", "ai", "business", "design", "marketing", "finance", "startup", "programming"],
+                        "description": "Newsletter category (optional)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 10)"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    # Ask an Expert - Entertainment (IMDB)
+    {
+        "type": "function",
+        "function": {
+            "name": "search_movies",
+            "description": "🎬 Search IMDB for movies and TV shows. Find information about films, series, and documentaries.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (movie title, TV show name)"
+                    },
+                    "content_type": {
+                        "type": "string",
+                        "enum": ["movie", "series", "episode"],
+                        "description": "Content type filter (optional)"
+                    },
+                    "year": {
+                        "type": "integer",
+                        "description": "Release year (optional)"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 10)"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_movie_details",
+            "description": "🎥 Get detailed information about a movie or TV show. Includes cast, plot, ratings, awards.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "imdb_id": {
+                        "type": "string",
+                        "description": "IMDB ID (e.g., 'tt0111161')"
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Movie/show title (if no IMDB ID)"
+                    },
+                    "year": {
+                        "type": "integer",
+                        "description": "Release year (helps with title search)"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_person",
+            "description": "👤 Search for actors, directors, and other film industry people. Includes Wikipedia cross-reference.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Person's name (e.g., 'Tom Hanks', 'Christopher Nolan')"
+                    },
+                    "include_wikipedia": {
+                        "type": "boolean",
+                        "description": "Include Wikipedia bio (default: true)"
+                    }
+                },
+                "required": ["name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_person_filmography",
+            "description": "🎭 Get filmography for an actor or director. Lists their movies and TV appearances.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "imdb_id": {
+                        "type": "string",
+                        "description": "IMDB person ID (e.g., 'nm0000158')"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 20)"
+                    }
+                },
+                "required": ["imdb_id"]
+            }
+        }
+    },
+    # Ask an Expert - People Search
+    {
+        "type": "function",
+        "function": {
+            "name": "search_politician",
+            "description": "🏛️ Search for politicians, especially German Bundestag members. Uses Wikipedia and official sources.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Politician's name (e.g., 'Olaf Scholz', 'Angela Merkel')"
+                    },
+                    "party": {
+                        "type": "string",
+                        "description": "Party filter (e.g., 'SPD', 'CDU', 'Grüne')"
+                    },
+                    "country": {
+                        "type": "string",
+                        "description": "Country code (default: 'de' for Germany)"
+                    }
+                },
+                "required": ["name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_people",
+            "description": "🔍 General people search via Wikipedia. Find information about notable people.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Person's name"
+                    },
+                    "person_type": {
+                        "type": "string",
+                        "enum": ["politician", "scientist", "artist", "athlete", "business", "general"],
+                        "description": "Type of person to search for (optional)"
+                    },
+                    "language": {
+                        "type": "string",
+                        "description": "Wikipedia language (default: 'de')"
+                    }
+                },
+                "required": ["name"]
+            }
+        }
     }
 ]
 
 
 # System prompt for the news assistant
 SYSTEM_PROMPT = """You are Woodchuck 🦫, a friendly news assistant for Woodchuck News.
+
+LANGUAGE RULE - CRITICAL:
+- ALWAYS respond in the SAME LANGUAGE as the user's question
+- If user writes in German → respond in German
+- If user writes in English → respond in English
+- If user writes in French → respond in French
+- NEVER mix languages in your response
+- NEVER switch to Chinese or any other language unless the user asked in that language
 
 CRITICAL RULES - YOU MUST FOLLOW THESE:
 1. YOU MUST CALL A TOOL to get news data. NEVER generate fake headlines.
@@ -495,6 +816,9 @@ WIKIPEDIA CONTEXT (get_wikipedia_context tool):
   2. Present the extract/summary text
   3. End with article link using "url" field: [Read more on Wikipedia](url)
   4. NEVER use thumbnail_image_url as a clickable link - it's just an image!
+  5. **ALWAYS offer to search for related news**: After showing Wikipedia info, ask:
+     "Would you like me to search for recent news about [topic]?" 🦫
+     This helps users discover current events related to the topic they looked up.
 
 🧑‍🔬 ASK AN EXPERT - Technical Research Tools:
 
@@ -530,6 +854,58 @@ When presenting expert_research results:
 - For GitHub repos: Show name, description, stars, language, and URL
 - If paper has university affiliations, include them for credibility
 - Format as clean lists, not raw JSON
+
+🎬 YOUTUBE & VIDEO LEARNING:
+
+- search_youtube: Find video tutorials and educational content
+  - "Python tutorial for beginners" → search_youtube(query="python tutorial beginner")
+  - "How to build a RAG system" → search_youtube(query="RAG retrieval augmented generation tutorial")
+
+- get_youtube_transcript: Get video transcripts for summarization
+  - "Summarize this video" → get_youtube_transcript(video_id="dQw4w9WgXcQ")
+
+📚 COURSES & LEARNING:
+
+- search_udemy: Find online courses on any topic
+  - "Python courses for beginners" → search_udemy(query="python", level="beginner")
+  - "Free data science courses" → search_udemy(query="data science", free_only=true)
+
+- search_conferences: Find tech conferences and events
+  - "AI conferences in Germany" → search_conferences(topic="AI", country="DE")
+  - "JavaScript conferences 2025" → search_conferences(topic="JavaScript", year=2025)
+
+- search_newsletters: Find curated newsletters
+  - "AI newsletters" → search_newsletters(query="AI", category="ai")
+  - "Startup newsletters" → get_popular_newsletters(category="startup")
+
+🎬 MOVIES & TV (IMDB):
+
+- search_movies: Find movies and TV shows
+  - "Search for Inception" → search_movies(query="Inception")
+  - "Find sci-fi movies from 2024" → search_movies(query="science fiction", year=2024)
+
+- get_movie_details: Get detailed info (cast, plot, ratings)
+  - "Tell me about The Matrix" → get_movie_details(title="The Matrix")
+
+- search_person: Find actors, directors with Wikipedia bio
+  - "Who is Christopher Nolan?" → search_person(name="Christopher Nolan")
+
+- get_person_filmography: List someone's movies/shows
+  - "Tom Hanks movies" → get_person_filmography(imdb_id="nm0000158")
+
+🏛️ PEOPLE & POLITICIANS:
+
+- search_politician: Search German/international politicians
+  - "Who is Olaf Scholz?" → search_politician(name="Olaf Scholz")
+  - "SPD politicians" → search_politician(name="", party="SPD")
+
+- search_people: General Wikipedia people search
+  - "Who is Elon Musk?" → search_people(name="Elon Musk")
+
+**IMPORTANT**: After showing person/politician info, ALWAYS offer to search for news:
+  - "Would you like me to search for recent news about [person name]?" 🦫
+  - For politicians, this is especially useful to find their latest statements or activities
+  - For celebrities/actors, this can find recent interviews or projects
 
 AVAILABLE PLATFORMS (use only these):
 Tech/Science: heise, slashdot

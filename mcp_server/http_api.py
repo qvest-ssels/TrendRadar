@@ -20,11 +20,15 @@ from .server import (
     get_trending_topics,
     get_news_by_date,
     analyze_topic_trend,
+    analyze_data_insights,
     analyze_sentiment,
+    find_similar_news,
     search_news,
+    search_related_news_history,
     generate_summary_report,
     get_woodchuck_pages,
     deep_search,
+    meta_search,
     get_wikipedia_context,
     search_wikipedia,
     get_wikipedia_user,
@@ -32,6 +36,7 @@ from .server import (
     search_huggingface_datasets,
     get_ml_papers,
     search_arxiv,
+    get_arxiv_paper,
     search_github_repos,
     expert_research,
     search_youtube,
@@ -46,6 +51,12 @@ from .server import (
     get_person_filmography,
     search_politician,
     search_people,
+    translate_text,
+    get_translation_languages,
+    translate_headlines,
+    get_current_config,
+    get_system_status,
+    trigger_crawl,
 )
 
 # Import data layer for FTS search
@@ -105,12 +116,16 @@ async def list_tools():
             {"name": "get_trending_topics", "description": "Get trending topics"},
             {"name": "get_news_by_date", "description": "Get headlines for a specific date"},
             {"name": "analyze_topic_trend", "description": "Analyze trend for a topic"},
+            {"name": "analyze_data_insights", "description": "📊 Data insights - platform compare, activity, keyword co-occurrence"},
             {"name": "analyze_sentiment", "description": "Analyze sentiment of headlines"},
+            {"name": "find_similar_news", "description": "🔗 Find news similar to a reference headline"},
             {"name": "search_news", "description": "Search news headlines by keyword"},
+            {"name": "search_related_news_history", "description": "📜 Search related news in historical data"},
             {"name": "generate_summary_report", "description": "Generate a summary report"},
             {"name": "get_woodchuck_pages", "description": "Get Woodchuck News page index"},
             {"name": "search_headlines_fts", "description": "Full-text search across headlines (SQLite FTS5)"},
             {"name": "deep_search", "description": "Deep search - combines local cache with live site search"},
+            {"name": "meta_search", "description": "🔬 Meta search - comprehensive topic research with clustering"},
             {"name": "get_wikipedia_context", "description": "Get Wikipedia background info for a topic"},
             {"name": "search_wikipedia", "description": "Search Wikipedia for articles"},
             {"name": "get_wikipedia_user", "description": "👤 Look up Wikipedia user info"},
@@ -118,6 +133,7 @@ async def list_tools():
             {"name": "search_huggingface_datasets", "description": "🧑‍🔬 Ask an Expert: Search HuggingFace for datasets"},
             {"name": "get_ml_papers", "description": "🧑‍🔬 Ask an Expert: Get latest ML/AI research papers"},
             {"name": "search_arxiv", "description": "🧑‍🔬 Ask an Expert: Search arXiv for academic papers"},
+            {"name": "get_arxiv_paper", "description": "🧑‍🔬 Ask an Expert: Get specific arXiv paper by ID"},
             {"name": "search_github_repos", "description": "🧑‍🔬 Ask an Expert: Search GitHub for repositories"},
             {"name": "expert_research", "description": "🧑‍🔬 Ask an Expert: Comprehensive research (papers + repos + models)"},
             {"name": "search_youtube", "description": "🎬 Search YouTube for tutorials and educational videos"},
@@ -132,6 +148,12 @@ async def list_tools():
             {"name": "get_person_filmography", "description": "🎭 Get filmography for a person"},
             {"name": "search_politician", "description": "🏛️ Search for politicians (German Bundestag)"},
             {"name": "search_people", "description": "🔍 General people search via Wikipedia"},
+            {"name": "translate_text", "description": "🌐 Translate text between languages"},
+            {"name": "get_translation_languages", "description": "🌐 Get available translation languages"},
+            {"name": "translate_headlines", "description": "🌐 Translate news headlines"},
+            {"name": "get_current_config", "description": "⚙️ Get system configuration"},
+            {"name": "get_system_status", "description": "📊 Get system status and health"},
+            {"name": "trigger_crawl", "description": "🔄 Trigger manual news crawl"},
         ]
     }
 
@@ -656,6 +678,85 @@ async def call_tool(tool_name: str, request: ToolRequest):
                 name=args.get("name"),
                 person_type=args.get("person_type"),
                 language=args.get("language", "de")
+            )
+        
+        # Data Analysis tools
+        elif tool_name == "analyze_data_insights":
+            result = await analyze_data_insights.fn(
+                insight_type=args.get("insight_type", "platform_compare"),
+                topic=args.get("topic"),
+                date_range=args.get("date_range"),
+                min_frequency=args.get("min_frequency", 3),
+                top_n=args.get("top_n", 20)
+            )
+        
+        elif tool_name == "find_similar_news":
+            result = await find_similar_news.fn(
+                reference_title=args.get("reference_title", ""),
+                threshold=args.get("threshold", 0.6),
+                limit=args.get("limit", 50),
+                include_url=args.get("include_url", False)
+            )
+        
+        elif tool_name == "search_related_news_history":
+            result = await search_related_news_history.fn(
+                reference_text=args.get("reference_text", ""),
+                time_preset=args.get("time_preset", "yesterday"),
+                threshold=args.get("threshold", 0.4),
+                limit=args.get("limit", 50),
+                include_url=args.get("include_url", False)
+            )
+        
+        # Meta Search
+        elif tool_name == "meta_search":
+            result = await meta_search.fn(
+                topic=args.get("topic", ""),
+                related_terms=args.get("related_terms"),
+                languages=args.get("languages"),
+                max_results_per_query=args.get("max_results_per_query", 30),
+                include_url=args.get("include_url", True)
+            )
+        
+        # arXiv paper by ID
+        elif tool_name == "get_arxiv_paper":
+            result = await get_arxiv_paper.fn(
+                arxiv_id=args.get("arxiv_id", "")
+            )
+        
+        # Translation tools
+        elif tool_name == "translate_text":
+            result = await translate_text.fn(
+                text=args.get("text", ""),
+                target=args.get("target", "en"),
+                source=args.get("source", "auto")
+            )
+        
+        elif tool_name == "get_translation_languages":
+            result = await get_translation_languages.fn()
+        
+        elif tool_name == "translate_headlines":
+            result = await translate_headlines.fn(
+                date_query=args.get("date_query", "today"),
+                platforms=args.get("platforms"),
+                target_language=args.get("target_language", "en"),
+                limit=args.get("limit", 20)
+            )
+        
+        # Admin tools
+        elif tool_name == "get_current_config":
+            result = await get_current_config.fn(
+                section=args.get("section", "all")
+            )
+        
+        elif tool_name == "get_system_status":
+            result = await get_system_status.fn()
+        
+        elif tool_name == "trigger_crawl":
+            result = await trigger_crawl.fn(
+                platforms=args.get("platforms"),
+                save_to_local=args.get("save_to_local", False),
+                include_url=args.get("include_url", False),
+                debug=args.get("debug", False)
             )
         
         else:

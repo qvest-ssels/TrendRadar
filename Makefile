@@ -288,7 +288,7 @@ news-chat-status:
 # Generate Woodchuck News static site from output data
 generate-woodchuck:
 	@echo "Generating Woodchuck News static site..."
-	cd woodchuck-news && $(UV) run python -m generator.generator
+	cd woodchuck-news && TEMPLATES_DIR=./templates OUTPUT_DIR=./output $(UV) run python -m generator.generator --output ./output
 	@echo "Static site generated in woodchuck-news/output/"
 
 # Start Woodchuck News development server (port 8080)
