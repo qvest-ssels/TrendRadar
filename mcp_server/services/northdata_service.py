@@ -323,14 +323,37 @@ def _parse_company_details_html(html_content: str, url: str) -> Dict[str, Any]:
             result["register"]["id"] = sanitize_html(register_part)
             result["address"]["country"] = _guess_country_from_register(register_part)
     
-    # Also try title tag as fallback for name
-    if not result["name"]:
-        title_match = re.search(r'<title>([^<|–]+)', html_content, re.IGNORECASE)
-        if title_match:
-            result["name"] = sanitize_html(title_match.group(1).strip())
+    # Try title tag for name and city (format: "Company Name, City")
+    title_match = re.search(r'<title>([^<|–]+)', html_content, re.IGNORECASE)
+    if title_match:
+        title_text = title_match.group(1).strip()
+        if ',' in title_text and not result["name"]:
+            parts = title_text.rsplit(',', 1)
+            result["name"] = sanitize_html(parts[0].strip())
+            if not result["address"]["city"]:
+                result["address"]["city"] = sanitize_html(parts[1].strip())
+        elif not result["name"]:
+            result["name"] = sanitize_html(title_text)
     
     # Extract legal form
     result["legal_form"] = _extract_legal_form(result["name"])
+    
+    # Look for register info in HTML (Amtsgericht + HRB/HRA pattern)
+    if not result["register"]["id"]:
+        register_patterns = [
+            r'(Amtsgericht\s+[A-Za-zäöüßÄÖÜ\s\(\)]+\s+(?:HRB|HRA|GnR|VR|PR)\s*\d+[A-Z]?)',
+            r'(HRB\s*\d+[A-Z]?)',
+            r'(HRA\s*\d+[A-Z]?)',
+        ]
+        for pattern in register_patterns:
+            match = re.search(pattern, html_content, re.IGNORECASE)
+            if match:
+                register_id = match.group(1).strip()
+                # Remove trailing colons or other punctuation
+                register_id = re.sub(r'[:\s]+$', '', register_id)
+                result["register"]["id"] = sanitize_html(register_id)
+                result["address"]["country"] = _guess_country_from_register(result["register"]["id"])
+                break
     
     # Try to find address in structured content (look for common German address patterns)
     # Pattern: Street + Number, D-12345 City
@@ -345,7 +368,7 @@ def _parse_company_details_html(html_content: str, url: str) -> Dict[str, Any]:
         city_text = address_match.group(3).strip()
         # Clean up city text (stop at first special char)
         city_clean = re.split(r'[<\n\t]', city_text)[0].strip()
-        if city_clean:
+        if city_clean and not result["address"]["city"]:
             result["address"]["city"] = sanitize_html(city_clean)
     
     # Look for GEGENSTAND (business purpose)
@@ -426,16 +449,32 @@ def _parse_company_details_html(html_content: str, url: str) -> Dict[str, Any]:
     result["related_persons"] = result["related_persons"][:20]
     
     # Determine status from page content
-    status_indicators = {
-        "terminated": ['gelöscht', 'aufgelöst', 'liquidation', 'abwicklung', 'erloschen'],
-        "active": ['aktiv', 'eingetragen', 'bestehend']
-    }
+    # Look for the actual status marker (usually in a tag like <span>Aktiv</span>)
+    # NOT just anywhere on the page (which would match UI filter elements)
     
-    content_lower = html_content.lower()
-    for status, keywords in status_indicators.items():
-        if any(kw in content_lower for kw in keywords):
+    # First, look for explicit status markers in HTML tags
+    status_patterns = [
+        (r'<[^>]*>\s*Aktiv\s*<', "active"),
+        (r'<[^>]*>\s*Terminiert\s*<', "terminated"),
+        (r'<[^>]*>\s*Liquidation\s*<', "liquidation"),
+        (r'<[^>]*>\s*Erloschen\s*<', "terminated"),
+        (r'<[^>]*>\s*Gelöscht\s*<', "terminated"),
+        (r'class="[^"]*status[^"]*aktiv', "active"),
+        (r'class="[^"]*status[^"]*termin', "terminated"),
+    ]
+    
+    for pattern, status in status_patterns:
+        if re.search(pattern, html_content, re.IGNORECASE):
             result["status"] = status
             break
+    
+    # If no explicit marker found, check if register entry mentions "eingetragen" (registered)
+    # This usually indicates an active company
+    if result["status"] == "unknown":
+        register_text = result.get("register", {}).get("id", "")
+        if register_text and ("HRB" in register_text or "HRA" in register_text):
+            # Has a valid register entry, likely active
+            result["status"] = "active"
     
     return result
 
@@ -689,6 +728,38 @@ class NorthDataService:
     # Web Scraping Methods (fallback when no API key)
     # =========================================================================
     
+    def _is_company_detail_page(self, html_content: str, query: str) -> bool:
+        """
+        Check if the HTML is a company detail page (not search results).
+        
+        North Data redirects to the company page directly when there's an exact match.
+        Company pages have specific markers like Amtsgericht, HRB/HRA entries.
+        """
+        import re
+        
+        # First check: title indicates search results page
+        title_match = re.search(r'<title>([^<]+)</title>', html_content, re.IGNORECASE)
+        if title_match:
+            title = title_match.group(1).lower()
+            # "Suche nach" = "Search for" - definitely a search page
+            if 'suche nach' in title:
+                return False
+            
+            # Check if title matches query (indicates direct company page)
+            query_lower = query.lower().replace(' ', '')
+            title_name = title.split(',')[0].strip().replace(' ', '')
+            title_matches = query_lower in title_name or title_name in query_lower
+            
+            # Title matches and doesn't have "suche" - likely company page
+            if title_matches:
+                # Verify with at least one company indicator
+                html_lower = html_content.lower()
+                has_register = 'amtsgericht' in html_lower or 'hrb' in html_lower
+                if has_register:
+                    return True
+        
+        return False
+    
     def _scrape_search(
         self,
         query: str,
@@ -725,16 +796,34 @@ class NorthDataService:
                 )
                 
                 if response.status_code == 200:
-                    companies = _parse_search_results_html(response.text)
+                    # Check if this is a direct company page (not search results)
+                    # Company pages have og:type or specific structure
+                    is_company_page = self._is_company_detail_page(response.text, query)
                     
-                    result = {
-                        "success": True,
-                        "companies": companies[:limit],
-                        "total": len(companies),
-                        "query": query,
-                        "source": "web_scraping",
-                        "note": "Limited data - for full access, configure an API key"
-                    }
+                    if is_company_page:
+                        # Parse the company details directly and return as single result
+                        company = _parse_company_details_html(response.text, response.url)
+                        
+                        result = {
+                            "success": True,
+                            "companies": [company],
+                            "total": 1,
+                            "query": query,
+                            "source": "web_scraping",
+                            "note": "Direct match found"
+                        }
+                    else:
+                        # Parse as search results
+                        companies = _parse_search_results_html(response.text)
+                        
+                        result = {
+                            "success": True,
+                            "companies": companies[:limit],
+                            "total": len(companies),
+                            "query": query,
+                            "source": "web_scraping",
+                            "note": "Limited data - for full access, configure an API key"
+                        }
                     
                     if CACHE_AVAILABLE:
                         cache.set(cache_key, result, ttl=CACHE_TTL_SEARCH)
