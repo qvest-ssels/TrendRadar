@@ -51,6 +51,9 @@ from .server import (
     get_person_filmography,
     search_politician,
     search_people,
+    search_company,
+    get_company_details,
+    search_executive,
     translate_text,
     get_translation_languages,
     translate_headlines,
@@ -148,6 +151,9 @@ async def list_tools():
             {"name": "get_person_filmography", "description": "🎭 Get filmography for a person"},
             {"name": "search_politician", "description": "🏛️ Search for politicians (German Bundestag)"},
             {"name": "search_people", "description": "🔍 General people search via Wikipedia"},
+            {"name": "search_company", "description": "🏢 Search European companies (via North Data)"},
+            {"name": "get_company_details", "description": "🏢 Get detailed company info (financials, executives)"},
+            {"name": "search_executive", "description": "👔 Search business executives (via North Data)"},
             {"name": "translate_text", "description": "🌐 Translate text between languages"},
             {"name": "get_translation_languages", "description": "🌐 Get available translation languages"},
             {"name": "translate_headlines", "description": "🌐 Translate news headlines"},
@@ -678,6 +684,34 @@ async def call_tool(tool_name: str, request: ToolRequest):
                 name=args.get("name"),
                 person_type=args.get("person_type"),
                 language=args.get("language", "de")
+            )
+        
+        # North Data - Company Lookups
+        elif tool_name == "search_company":
+            result = await search_company.fn(
+                query=args.get("query", ""),
+                countries=args.get("countries"),
+                limit=args.get("limit", 10),
+                status=args.get("status")
+            )
+        
+        elif tool_name == "get_company_details":
+            result = await get_company_details.fn(
+                name=args.get("name"),
+                address=args.get("address"),
+                register_id=args.get("register_id"),
+                register_city=args.get("register_city"),
+                include_financials=args.get("include_financials", True),
+                include_relations=args.get("include_relations", True),
+                include_events=args.get("include_events", False)
+            )
+        
+        elif tool_name == "search_executive":
+            result = await search_executive.fn(
+                first_name=args.get("first_name"),
+                last_name=args.get("last_name", ""),
+                address=args.get("address"),
+                limit=args.get("limit", 10)
             )
         
         # Data Analysis tools

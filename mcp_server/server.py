@@ -1310,7 +1310,16 @@ async def expert_research(
         
         # Process arXiv results
         if arxiv_result and isinstance(arxiv_result, dict) and arxiv_result.get("success"):
-            results["papers"] = arxiv_result.get("papers", [])
+            papers = arxiv_result.get("papers", [])
+            # Format authors as readable string for better LLM extraction
+            for paper in papers:
+                if paper.get("authors"):
+                    authors_list = paper["authors"]
+                    if len(authors_list) > 3:
+                        paper["authors_formatted"] = f"{', '.join(authors_list[:3])} et al."
+                    else:
+                        paper["authors_formatted"] = ", ".join(authors_list)
+            results["papers"] = papers
             results["sources_queried"].append("arxiv")
         
         # Process GitHub results
@@ -1335,6 +1344,7 @@ async def expert_research(
             "total_models": len(results["models"]),
             "total_datasets": len(results["datasets"]),
             "top_paper": results["papers"][0]["title"] if results["papers"] else None,
+            "top_paper_authors": results["papers"][0].get("authors_formatted", ", ".join(results["papers"][0].get("authors", []))) if results["papers"] else None,
             "top_repo": f"{results['repos'][0]['full_name']} ({results['repos'][0]['stars']}⭐)" if results["repos"] else None,
             "top_model": results["models"][0]["id"] if results["models"] else None,
         }
@@ -1997,6 +2007,204 @@ async def search_people(
             "success": False,
             "error": {
                 "code": "PEOPLE_SEARCH_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+# =============================================================================
+# BUSINESS INTELLIGENCE - North Data Company Lookups
+# =============================================================================
+
+@mcp.tool
+async def search_company(
+    query: str,
+    countries: Optional[List[str]] = None,
+    limit: int = 10,
+    status: Optional[str] = None
+) -> str:
+    """
+    🏢 Search European Companies (via North Data)
+    
+    Search for companies across 22 European countries. Returns company names,
+    registration info, addresses, and links to detailed profiles.
+    
+    Supported countries: DE (Germany), AT (Austria), CH (Switzerland), 
+    GB (UK), FR (France), NL (Netherlands), BE (Belgium), PL (Poland),
+    CZ (Czech Republic), ES (Spain), PT (Portugal), IE (Ireland),
+    DK (Denmark), SE (Sweden), NO (Norway), FI (Finland), LU (Luxembourg),
+    LI (Liechtenstein), MT (Malta), CY (Cyprus), GR (Greece)
+    
+    Args:
+        query: Company name or keyword (e.g., "Siemens", "startup AI Berlin")
+        countries: List of country codes to search (e.g., ["DE", "AT"])
+                   If not specified, searches all countries
+        limit: Maximum results (default: 10, max: 50)
+        status: Filter by status: "active", "terminated", or "liquidation"
+    
+    Returns:
+        JSON with company results:
+        - name, legal_form (GmbH, AG, etc.)
+        - address (city, country)
+        - register info (HRB number, court)
+        - status and North Data profile URL
+    
+    Examples:
+        Search German tech companies
+        → search_company(query="SAP", countries=["DE"])
+        
+        Search active startups
+        → search_company(query="fintech startup", status="active")
+        
+        Search across DACH region
+        → search_company(query="Bosch", countries=["DE", "AT", "CH"])
+    """
+    from .services.northdata_service import get_northdata_service
+    
+    try:
+        service = get_northdata_service()
+        result = service.search_companies(
+            query=query,
+            countries=countries,
+            limit=limit,
+            status=status
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "COMPANY_SEARCH_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def get_company_details(
+    name: Optional[str] = None,
+    address: Optional[str] = None,
+    register_id: Optional[str] = None,
+    register_city: Optional[str] = None,
+    include_financials: bool = True,
+    include_relations: bool = True,
+    include_events: bool = False
+) -> str:
+    """
+    🏢 Get Detailed Company Information (via North Data)
+    
+    Retrieve comprehensive company data including financials, executives,
+    shareholders, and company history. Requires either name or register_id.
+    
+    Args:
+        name: Company name (e.g., "Siemens AG")
+        address: City for disambiguation (e.g., "München")
+        register_id: German register ID (e.g., "HRB 12345")
+        register_city: Court city (e.g., "München")
+        include_financials: Include revenue, profit, employees (default: True)
+        include_relations: Include executives and shareholders (default: True)
+        include_events: Include company events like M&A, insolvency (default: False)
+    
+    Returns:
+        JSON with detailed company information:
+        - Basic: name, legal_form, address, register, status
+        - Financials: revenue, profit, employees, equity
+        - Related persons: directors, executives with roles
+        - Related companies: subsidiaries, shareholders
+        - Events: incorporations, changes, M&A (if requested)
+    
+    Examples:
+        Get Siemens details by name
+        → get_company_details(name="Siemens AG", address="München")
+        
+        Get company by register ID
+        → get_company_details(register_id="HRB 6684", register_city="München")
+        
+        Get company with full history
+        → get_company_details(name="Volkswagen AG", include_events=True)
+    """
+    from .services.northdata_service import get_northdata_service
+    
+    try:
+        service = get_northdata_service()
+        result = service.get_company_details(
+            name=name,
+            address=address,
+            register_id=register_id,
+            register_city=register_city,
+            include_financials=include_financials,
+            include_relations=include_relations,
+            include_events=include_events
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "COMPANY_DETAILS_ERROR",
+                "message": str(e)
+            }
+        }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
+async def search_executive(
+    first_name: Optional[str] = None,
+    last_name: str = "",
+    address: Optional[str] = None,
+    limit: int = 10
+) -> str:
+    """
+    👔 Search Business Executives (via North Data)
+    
+    Search for company executives, directors, and shareholders.
+    Returns their company affiliations and roles.
+    
+    Args:
+        first_name: First name(s) (optional)
+        last_name: Last name (required)
+        address: City for disambiguation
+        limit: Maximum results (default: 10)
+    
+    Returns:
+        JSON with person results:
+        - name, title, birth_year
+        - companies: List of companies they're associated with
+        - roles: Their role in each company (CEO, Director, Shareholder, etc.)
+        - North Data profile URL
+    
+    Examples:
+        Search for an executive
+        → search_executive(first_name="Elon", last_name="Musk")
+        
+        Search by last name only
+        → search_executive(last_name="Müller", address="Berlin")
+    """
+    from .services.northdata_service import get_northdata_service
+    
+    if not last_name:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "MISSING_LASTNAME",
+                "message": "Last name is required for executive search"
+            }
+        }, ensure_ascii=False, indent=2)
+    
+    try:
+        service = get_northdata_service()
+        result = service.search_persons(
+            first_name=first_name,
+            last_name=last_name,
+            address=address,
+            limit=limit
+        )
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": {
+                "code": "EXECUTIVE_SEARCH_ERROR",
                 "message": str(e)
             }
         }, ensure_ascii=False, indent=2)

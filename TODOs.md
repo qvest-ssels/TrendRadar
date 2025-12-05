@@ -167,6 +167,25 @@ When users ask questions that need expert-level research (not just news), this f
   - API: https://api.stackexchange.com/2.3/search
 - [ ] **4.2 Add MCP tool** - `search_stackoverflow(query, tags, limit)`
 
+### Phase 4.5: North Data - European Company Lookups ✅ DONE
+- [x] **4.5.1 Create North Data service** - `mcp_server/services/northdata_service.py`
+  - Search companies across 22 European countries
+  - Get detailed company info (financials, executives, shareholders)
+  - Search business executives by name
+  - Requires NORTHDATA_API_KEY (get at https://www.northdata.de/_data)
+- [x] **4.5.2 Add MCP tools**
+  - `search_company(query, countries, status)` - Find companies by name/keyword
+  - `get_company_details(name, address, register_id)` - Full company data
+  - `search_executive(first_name, last_name)` - Find business leaders
+- [x] **4.5.3 Covered Countries**
+  - DACH: DE, AT, CH
+  - Western Europe: GB, FR, NL, BE, LU, IE
+  - Nordic: DK, SE, NO, FI
+  - Southern Europe: ES, PT, IT, GR, MT, CY
+  - Eastern Europe: PL, CZ
+  - LI (Liechtenstein)
+- [x] **4.5.4 Integrate into News Chat & HTTP API**
+
 ### Future Extensions
 - [ ] **PubMed** for medical research
 - [ ] **Semantic Scholar** for academic papers

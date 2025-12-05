@@ -347,6 +347,24 @@ secrets:
     twitter: "${TWITTER_BEARER_TOKEN}"
 ```
 
+### External Service API Keys
+Configure these environment variables for external services:
+
+| Service | Variable | Purpose | Required |
+|---------|----------|---------|----------|
+| North Data | `NORTHDATA_API_KEY` | European company lookups | No |
+| OMDB | `OMDB_API_KEY` | Movie/TV information | No |
+| GitHub | `GITHUB_TOKEN` | Increase API rate limits | No |
+
+```bash
+# Example: Set North Data API key
+export NORTHDATA_API_KEY="your-api-key-here"
+
+# Get API key from: https://www.northdata.de/_data
+# - Free tier: 5,000 requests/month included
+# - Covers 22 European countries
+```
+
 ## 🚀 性能优化
 
 ### 生产环境优化

@@ -410,7 +410,7 @@ MCP_TOOLS = [
         "type": "function",
         "function": {
             "name": "expert_research",
-            "description": "🧑‍🔬 Ask an Expert: PREFERRED for broad technical questions. Combines arXiv papers + GitHub repos + HuggingFace models into one comprehensive result.",
+            "description": "🧑‍🔬 Ask an Expert: PREFERRED for broad technical questions. Combines arXiv papers + GitHub repos + HuggingFace models. IMPORTANT: Response contains 'papers' array with 'title', 'authors', 'url', 'pdf_url' - you MUST show authors!",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -755,6 +755,121 @@ MCP_TOOLS = [
                 "required": ["name"]
             }
         }
+    },
+    # Business Intelligence - North Data Company Lookups
+    {
+        "type": "function",
+        "function": {
+            "name": "search_company",
+            "description": "🏢 Search European Companies (via North Data). Find companies across 22 European countries (DE, AT, CH, GB, FR, etc.).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Company name or keyword (e.g., 'Siemens', 'startup AI Berlin')"
+                    },
+                    "countries": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Country codes to search (e.g., ['DE', 'AT']). Empty for all countries."
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 10)"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["active", "terminated", "liquidation"],
+                        "description": "Filter by company status"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_company_details",
+            "description": "🏢 Get detailed company information (via North Data). Returns financials, executives, shareholders, and events.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Company name (e.g., 'Siemens AG')"
+                    },
+                    "address": {
+                        "type": "string",
+                        "description": "City for disambiguation (e.g., 'München')"
+                    },
+                    "register_id": {
+                        "type": "string",
+                        "description": "German register ID (e.g., 'HRB 12345')"
+                    },
+                    "register_city": {
+                        "type": "string",
+                        "description": "Court city (e.g., 'München')"
+                    },
+                    "include_financials": {
+                        "type": "boolean",
+                        "description": "Include revenue, profit, employees (default: true)"
+                    },
+                    "include_relations": {
+                        "type": "boolean",
+                        "description": "Include executives and shareholders (default: true)"
+                    },
+                    "include_events": {
+                        "type": "boolean",
+                        "description": "Include company events (default: false)"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_executive",
+            "description": "👔 Search business executives (via North Data). Find company directors, managers, and shareholders.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "first_name": {
+                        "type": "string",
+                        "description": "First name(s)"
+                    },
+                    "last_name": {
+                        "type": "string",
+                        "description": "Last name (required)"
+                    },
+                    "address": {
+                        "type": "string",
+                        "description": "City for disambiguation"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 10)"
+                    }
+                },
+                "required": ["last_name"]
+            }
+        }
+    },
+    # System tools
+    {
+        "type": "function",
+        "function": {
+            "name": "get_system_status",
+            "description": "📊 Get system status and health information. Shows service status, data statistics, and cache info.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
     }
 ]
 
@@ -770,12 +885,60 @@ LANGUAGE RULE - CRITICAL:
 - NEVER mix languages in your response
 - NEVER switch to Chinese or any other language unless the user asked in that language
 
+META QUESTIONS - About yourself and your capabilities:
+When users ask "what can you do?", "which tools do you have?", "help", or similar:
+→ Do NOT call any tool
+→ Explain your capabilities directly:
+
+"I'm Woodchuck 🦫, your AI news assistant! Here's what I can help you with:
+
+📰 **News & Headlines**
+- Latest news from 30+ global sources
+- Search news by topic, company, or person
+- Deep search across news sites
+
+📚 **Research & Learning**
+- Wikipedia background info on any topic
+- arXiv academic papers
+- GitHub repositories
+- HuggingFace ML models & datasets
+- YouTube tutorials & transcripts
+- Udemy courses
+- Tech conferences
+- Newsletters
+
+🏢 **Business Intelligence** (via North Data)
+- Search European companies (22 countries)
+- Company details, financials, executives
+- Business executive lookups
+
+🎬 **Entertainment**
+- Movie & TV show info (IMDB)
+- Actor/director filmographies
+
+👤 **People**
+- Politician info (German Bundestag)
+- Celebrity & public figure lookups
+
+🌐 **Translation**
+- Translate text between languages
+- Translate news headlines
+
+⚙️ **System**
+- Check system status (get_system_status)
+
+Just ask me anything! 🦫"
+
 CRITICAL RULES - YOU MUST FOLLOW THESE:
 1. YOU MUST CALL A TOOL to get news data. NEVER generate fake headlines.
 2. NEVER make up URLs - only use URLs returned by tools.
 3. If you don't have real data from a tool, say "I need to fetch the data" and call a tool.
 4. If a tool returns an error or no results, say "I couldn't find any results" - don't invent data.
 5. Every headline you show MUST come from tool results - NO EXCEPTIONS.
+
+SYSTEM STATUS:
+- When user asks "system status", "check status", "how are you doing" → call get_system_status
+- Present the results in a friendly way, showing service health and data statistics
 
 MANDATORY: When user asks for news, headlines, or any information:
 → FIRST call get_latest_news or search_news to get REAL data
@@ -846,14 +1009,47 @@ This combines arXiv papers + GitHub repos + HuggingFace models in one call:
 - search_github_repos: Open source projects and libraries
   - "Python web scraping libraries" → search_github_repos(query="web scraping", language="python")
 
-When presenting expert_research results:
-- 📄 **Papers**: Show title, authors, and arXiv link
-- 📦 **Repos**: Show name, stars, and GitHub link  
-- 🤗 **Models**: Show name, downloads, and HuggingFace link
-- Highlight repos marked "likely_implements_paper" - these are implementations!
-- For GitHub repos: Show name, description, stars, language, and URL
-- If paper has university affiliations, include them for credibility
-- Format as clean lists, not raw JSON
+When presenting expert_research or search_arxiv results:
+**CRITICAL - Extract data from the tool response!**
+
+The tool response contains structured data. You MUST extract and display:
+
+📄 **For arXiv Papers** - Extract from response and show:
+- **title** → Show as clickable link: [title](url)
+- **authors** → ALWAYS show! The response contains an "authors" array - display first 3-5 names
+- **affiliations** → Show if present in response
+- **url** → Make title clickable
+- **pdf_url** → Add PDF link: [📄 PDF](pdf_url)
+- **published** → Show date
+
+Example output format:
+"1. **[AR-RAG: Autoregressive Retrieval Augmentation](https://arxiv.org/abs/2506.06962)** [📄 PDF](https://arxiv.org/pdf/2506.06962.pdf)
+   👤 Authors: Jingyuan Qi, Zhiyang Xu, Qifan Wang
+   📅 Published: June 2025"
+
+⚠️ DO NOT say "Authors: [Not specified]" - the authors ARE in the response data!
+
+📦 **For GitHub Repos** - Extract and show:
+- **name** → Show as clickable link: [name](url)
+- **stargazers_count** → Show as "⭐ X stars"
+- **language** → Show programming language
+- **description** → Show short description
+
+🤗 **For HuggingFace Models** - Extract and show:
+- **id** → Show as clickable link
+- **downloads** → Show download count
+- **task** → Show task type
+
+📦 **For GitHub Repos** - ALWAYS show:
+- Name as clickable link: [repo-name](url)
+- Stars, language, description
+- If marked "likely_implements_paper" → highlight as implementation!
+
+🤗 **For HuggingFace Models** - ALWAYS show:
+- Model name as clickable link: [model-name](url)
+- Downloads count, task type
+
+NEVER just list names without links - always make them clickable!
 
 🎬 YOUTUBE & VIDEO LEARNING:
 
@@ -906,6 +1102,26 @@ When presenting expert_research results:
   - "Would you like me to search for recent news about [person name]?" 🦫
   - For politicians, this is especially useful to find their latest statements or activities
   - For celebrities/actors, this can find recent interviews or projects
+
+🏢 BUSINESS INTELLIGENCE (North Data - European Companies):
+
+- search_company: Search companies across 22 European countries
+  - "Find Siemens" → search_company(query="Siemens", countries=["DE"])
+  - "Startups in Berlin" → search_company(query="startup Berlin", status="active")
+  - "Search DACH companies" → search_company(query="tech", countries=["DE", "AT", "CH"])
+
+- get_company_details: Get detailed company info (financials, executives, shareholders)
+  - "Details about SAP" → get_company_details(name="SAP SE", address="Walldorf")
+  - "Volkswagen executives" → get_company_details(name="Volkswagen AG", include_relations=true)
+
+- search_executive: Find business executives and their company roles
+  - "Find CEO Müller" → search_executive(last_name="Müller")
+  - "Find Tim Cook" → search_executive(first_name="Tim", last_name="Cook")
+
+**Company format**: Show company info cleanly:
+  - Name (Legal Form) - City, Country
+  - Status: Active/Terminated
+  - Link to North Data profile when available
 
 AVAILABLE PLATFORMS (use only these):
 Tech/Science: heise, slashdot
