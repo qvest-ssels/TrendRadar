@@ -172,11 +172,12 @@ When users ask questions that need expert-level research (not just news), this f
   - Search companies across 22 European countries
   - Get detailed company info (financials, executives, shareholders)
   - Search business executives by name
-  - Requires NORTHDATA_API_KEY (get at https://www.northdata.de/_data)
+  - API: NORTHDATA_API_KEY (get at https://www.northdata.de/_data)
+  - Web scraping fallback when no API key (limited features)
 - [x] **4.5.2 Add MCP tools**
   - `search_company(query, countries, status)` - Find companies by name/keyword
   - `get_company_details(name, address, register_id)` - Full company data
-  - `search_executive(first_name, last_name)` - Find business leaders
+  - `search_executive(first_name, last_name)` - Find business leaders (API only)
 - [x] **4.5.3 Covered Countries**
   - DACH: DE, AT, CH
   - Western Europe: GB, FR, NL, BE, LU, IE
@@ -185,6 +186,15 @@ When users ask questions that need expert-level research (not just news), this f
   - Eastern Europe: PL, CZ
   - LI (Liechtenstein)
 - [x] **4.5.4 Integrate into News Chat & HTTP API**
+- [x] **4.5.5 Web Scraping Fallback**
+  - Uses cloudscraper to bypass anti-bot protection
+  - Parses search results and company detail pages
+  - Smart matching to find correct company
+  - Limitations:
+    - No person/executive search (API only)
+    - Some large companies may not be found correctly
+    - Less detailed data than API
+    - Rate limiting may apply
 
 ### Future Extensions
 - [ ] **PubMed** for medical research
