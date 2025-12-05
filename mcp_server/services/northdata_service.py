@@ -144,7 +144,10 @@ class NorthDataService:
     - Person search
     - Financial data
     
-    Requires NORTHDATA_API_KEY environment variable.
+    API Key Priority:
+    1. Constructor argument
+    2. Config file: api_keys.northdata in config.yaml
+    3. Environment variable: NORTHDATA_API_KEY
     """
     
     def __init__(self, api_key: Optional[str] = None):
@@ -152,9 +155,9 @@ class NorthDataService:
         Initialize North Data service.
         
         Args:
-            api_key: North Data API key. If not provided, reads from NORTHDATA_API_KEY env var.
+            api_key: North Data API key. If not provided, reads from config or env var.
         """
-        self.api_key = api_key or os.environ.get("NORTHDATA_API_KEY")
+        self.api_key = api_key or self._load_api_key()
         self.session = requests.Session()
         self.session.headers.update({
             "Accept": "application/json",
@@ -163,6 +166,33 @@ class NorthDataService:
         
         if not self.api_key:
             logger.warning("NORTHDATA_API_KEY not set - North Data features will be limited")
+    
+    def _load_api_key(self) -> Optional[str]:
+        """Load API key from config file or environment variable."""
+        # Try config file first
+        try:
+            from pathlib import Path
+            import yaml
+            
+            config_paths = [
+                Path(__file__).parent.parent.parent / "config" / "config.yaml",
+                Path("config/config.yaml"),
+            ]
+            
+            for config_path in config_paths:
+                if config_path.exists():
+                    with open(config_path, 'r', encoding='utf-8') as f:
+                        config = yaml.safe_load(f)
+                        api_keys = config.get('api_keys', {})
+                        if api_keys.get('northdata'):
+                            logger.debug("Loaded NORTHDATA API key from config.yaml")
+                            return api_keys['northdata']
+                    break
+        except Exception as e:
+            logger.debug(f"Could not load config: {e}")
+        
+        # Fall back to environment variable
+        return os.environ.get("NORTHDATA_API_KEY")
     
     def _get_cache_key(self, prefix: str, **kwargs) -> str:
         """Generate a cache key from prefix and parameters."""

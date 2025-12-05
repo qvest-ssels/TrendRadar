@@ -3,6 +3,14 @@ app:
   show_version_update: true # 控制显示版本更新提示，如果 false，则不接受新版本提示
   timezone: "Europe/Berlin" # 时区设置，支持 pytz 时区名称，如 "UTC", "America/New_York", "Europe/London", "Europe/Paris" (UTC+1), "Europe/Berlin" (UTC+1)
 
+# 🔑 API Keys for External Services
+# These can also be set via environment variables (takes precedence)
+# Environment variables: NORTHDATA_API_KEY, OMDB_API_KEY, GITHUB_TOKEN
+api_keys:
+  northdata: ""  # North Data API for European company lookups (https://www.northdata.de/_data)
+  omdb: ""        # OMDB API for movie/TV info (https://www.omdbapi.com/apikey.aspx)
+  # github: ""    # GitHub token for increased rate limits (optional)
+
 # 🔒 Feature Flags (Premium Features)
 # Enable experimental or premium features
 # Can also be enabled via:
